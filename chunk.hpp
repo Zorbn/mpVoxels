@@ -40,8 +40,8 @@ private:
     std::vector<float> shadeNoise;
 
     std::vector<VertexData> vertices;
-    std::vector<uint16_t> indices;
+    std::vector<uint32_t> indices;
 
     std::vector<InstanceData> instances;
-    Model<VertexData, InstanceData> model;
+    Model<VertexData, uint32_t, InstanceData> model;
 };

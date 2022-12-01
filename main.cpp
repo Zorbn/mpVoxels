@@ -38,7 +38,7 @@ private:
     World world;
 
 public:
-    App() : world(16, 4) {}
+    App() : world(32, 4) {}
 
     void init(VulkanState& vulkanState, GLFWwindow* window, int32_t width, int32_t height) {
         this->window = window;
@@ -95,7 +95,7 @@ public:
         pipeline.createDescriptorSets(
             vulkanState.maxFramesInFlight, vulkanState.device,
             [&](std::vector<VkWriteDescriptorSet>& descriptorWrites, VkDescriptorSet descriptorSet,
-                size_t i) {
+                uint32_t i) {
                 VkDescriptorBufferInfo bufferInfo{};
                 bufferInfo.buffer = ubo.getBuffer(i);
                 bufferInfo.offset = 0;
@@ -142,7 +142,7 @@ public:
     }
 
     void update(VulkanState& vulkanState) {
-        float newTime = glfwGetTime();
+        float newTime = static_cast<float>(glfwGetTime());
         float deltaTime = newTime - currentTime;
         currentTime = newTime;
 

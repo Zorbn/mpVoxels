@@ -64,8 +64,8 @@ void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands,
                         continue;
 
                     size_t vertexCount = vertices.size();
-                    for (uint16_t index : cubeIndices[face]) {
-                        indices.push_back(index + static_cast<uint16_t>(vertexCount));
+                    for (uint32_t index : cubeIndices[face]) {
+                        indices.push_back(index + static_cast<uint32_t>(vertexCount));
                     }
 
                     for (size_t i = 0; i < 4; i++) {
@@ -84,7 +84,7 @@ void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands,
     }
 
     if (firstUpdate) {
-        model = Model<VertexData, InstanceData>::fromVerticesAndIndices(vertices, indices, 1, allocator, commands, graphicsQueue, device);
+        model = Model<VertexData, uint32_t, InstanceData>::fromVerticesAndIndices(vertices, indices, 1, allocator, commands, graphicsQueue, device);
         model.updateInstances(instances, commands, allocator, graphicsQueue, device);
     } else {
         model.update(vertices, indices, commands, allocator, graphicsQueue, device);

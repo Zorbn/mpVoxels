@@ -94,7 +94,7 @@ const std::array<std::array<glm::vec2, 4>, 6> cubeUvs = {{
     },
 }};
 
-const std::array<std::array<uint16_t, 6>, 6> cubeIndices = {{
+const std::array<std::array<uint32_t, 6>, 6> cubeIndices = {{
     {0, 1, 2, 0, 2, 3}, // Forward
     {0, 2, 1, 0, 3, 2}, // Backward
     {0, 2, 1, 0, 3, 2}, // Right
