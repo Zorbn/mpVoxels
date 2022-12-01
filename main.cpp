@@ -6,6 +6,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <vkFrame/renderer.hpp>
+
+#include "GLFW/glfw3.h"
+
 #include "deps/perlinNoise.hpp"
 
 #include "renderTypes.hpp"
@@ -26,12 +29,21 @@ private:
 
     std::vector<VkClearValue> clearValues;
 
+    GLFWwindow* window;
+    float currentTime;
+
+    float playerSpeed = 3.0f;
+    glm::vec3 playerPos{0.0f, 0.0f, 0.0f};
+
     World world;
 
 public:
     App() : world(16, 4) {}
 
     void init(VulkanState& vulkanState, GLFWwindow* window, int32_t width, int32_t height) {
+        this->window = window;
+        glfwSetInputMode(window, GLFW_STICKY_KEYS, true);
+
         vulkanState.swapchain.create(vulkanState.device, vulkanState.physicalDevice,
                                      vulkanState.surface, width, height);
 
@@ -130,7 +142,21 @@ public:
     }
 
     void update(VulkanState& vulkanState) {
+        float newTime = glfwGetTime();
+        float deltaTime = newTime - currentTime;
+        currentTime = newTime;
+
         world.update(vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
+
+        int32_t state = glfwGetKey(window, GLFW_KEY_W);
+        if (state == GLFW_PRESS) {
+            playerPos.z += playerSpeed * deltaTime;
+        }
+
+        state = glfwGetKey(window, GLFW_KEY_S);
+        if (state == GLFW_PRESS) {
+            playerPos.z -= playerSpeed * deltaTime;
+        }
     }
 
     void render(VulkanState& vulkanState, VkCommandBuffer commandBuffer, uint32_t imageIndex,
@@ -138,10 +164,9 @@ public:
         const VkExtent2D& extent = vulkanState.swapchain.getExtent();
 
         UniformBufferData uboData{};
-        uboData.model =
-            glm::rotate(glm::mat4(1.0f), glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        uboData.view = glm::lookAt(glm::vec3(10.0f, 10.0f, 100.0f), glm::vec3(0.0f, 0.0f, 0.0f),
-                                   glm::vec3(0.0f, 0.0f, 1.0f));
+        uboData.model = glm::mat4(1.0f);
+        uboData.view = glm::lookAt(playerPos, playerPos + glm::vec3(0.0f, 0.0f, 1.0f),
+                                   glm::vec3(0.0f, 1.0f, 0.0f));
         uboData.proj =
             glm::perspective(glm::radians(45.0f), extent.width / (float)extent.height, 0.1f, 200.0f);
         uboData.proj[1][1] *= -1;
