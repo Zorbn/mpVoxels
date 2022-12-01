@@ -1,0 +1,3 @@
+bool isCollidingWithBlock() {
+    return false;
+}
