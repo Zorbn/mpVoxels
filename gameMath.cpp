@@ -11,3 +11,7 @@ glm::ivec3 indexTo3d(int32_t i, int32_t size) {
         i / (size * size)
     };
 }
+
+glm::ivec3 floorToInt(glm::vec3 v) {
+    return static_cast<glm::ivec3>(glm::floor(v));
+}

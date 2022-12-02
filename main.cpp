@@ -15,6 +15,7 @@
 #include "cubeMesh.hpp"
 #include "directions.hpp"
 #include "world.hpp"
+#include "physics.hpp"
 
 class App {
 private:
@@ -34,7 +35,8 @@ private:
     float mouseX = 0, mouseY = 0;
 
     float playerSpeed = 3.0f;
-    glm::vec3 playerPos{0.0f, 0.0f, 0.0f};
+    glm::vec3 playerPos{-5.0f, -5.0f, -5.0f};
+    glm::vec3 playerSize{0.8f, 0.8f, 0.8f};
     glm::vec3 playerForwardDir;
     glm::vec3 playerRightDir;
     float mouseSensitivity = 0.05f;
@@ -201,25 +203,51 @@ public:
         glm::vec2 horizontalForwardDir = glm::normalize(glm::vec2(playerForwardDir.x, playerForwardDir.z));
         glm::vec2 horizontalRightDir = glm::normalize(glm::vec2(playerRightDir.x, playerRightDir.z));
 
+        glm::vec3 newPlayerPos = playerPos;
+
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-            playerPos.x += horizontalForwardDir.x * playerSpeed * deltaTime;
-            playerPos.z += horizontalForwardDir.y * playerSpeed * deltaTime;
+            newPlayerPos.x += horizontalForwardDir.x * playerSpeed * deltaTime;
+            newPlayerPos.z += horizontalForwardDir.y * playerSpeed * deltaTime;
         }
 
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-            playerPos.x -= horizontalForwardDir.x * playerSpeed * deltaTime;
-            playerPos.z -= horizontalForwardDir.y * playerSpeed * deltaTime;
+            newPlayerPos.x -= horizontalForwardDir.x * playerSpeed * deltaTime;
+            newPlayerPos.z -= horizontalForwardDir.y * playerSpeed * deltaTime;
         }
 
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-            playerPos.x -= horizontalRightDir.x * playerSpeed * deltaTime;
-            playerPos.z -= horizontalRightDir.y * playerSpeed * deltaTime;
+            newPlayerPos.x -= horizontalRightDir.x * playerSpeed * deltaTime;
+            newPlayerPos.z -= horizontalRightDir.y * playerSpeed * deltaTime;
         }
 
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-            playerPos.x += horizontalRightDir.x * playerSpeed * deltaTime;
-            playerPos.z += horizontalRightDir.y * playerSpeed * deltaTime;
+            newPlayerPos.x += horizontalRightDir.x * playerSpeed * deltaTime;
+            newPlayerPos.z += horizontalRightDir.y * playerSpeed * deltaTime;
         }
+
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+            newPlayerPos.y += playerSpeed * deltaTime;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+            newPlayerPos.y -= playerSpeed * deltaTime;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_N) != GLFW_PRESS) {
+            if (isCollidingWithBlock(world, glm::vec3{newPlayerPos.x, playerPos.y, playerPos.z}, playerSize)) {
+                newPlayerPos.x = playerPos.x;
+            }
+
+            if (isCollidingWithBlock(world, glm::vec3{playerPos.x, newPlayerPos.y, playerPos.z}, playerSize)) {
+                newPlayerPos.y = playerPos.y;
+            }
+
+            if (isCollidingWithBlock(world, glm::vec3{playerPos.x, playerPos.y, newPlayerPos.z}, playerSize)) {
+                newPlayerPos.z = playerPos.z;
+            }
+        }
+
+        playerPos = newPlayerPos;
     }
 
     void render(VulkanState& vulkanState, VkCommandBuffer commandBuffer, uint32_t imageIndex,
@@ -229,7 +257,7 @@ public:
         UniformBufferData uboData{};
         uboData.model = glm::mat4(1.0f);
         uboData.view = glm::lookAt(playerPos, playerPos + playerForwardDir, glm::vec3(0.0f, 1.0f, 0.0f));
-        uboData.proj = glm::perspective(glm::radians(45.0f), extent.width / (float)extent.height, 0.1f, 200.0f);
+        uboData.proj = glm::perspective(glm::radians(90.0f), extent.width / (float)extent.height, 0.1f, 128.0f);
         uboData.proj[1][1] *= -1;
 
         ubo.update(uboData);
