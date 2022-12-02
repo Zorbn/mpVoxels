@@ -36,6 +36,7 @@ private:
     float playerSpeed = 3.0f;
     glm::vec3 playerPos{0.0f, 0.0f, 0.0f};
     glm::vec3 playerForwardDir;
+    glm::vec3 playerRightDir;
     float mouseSensitivity = 0.05f;
     float playerRotationX = 0, playerRotationY = 0;
 
@@ -62,10 +63,12 @@ public:
         mouseX = newMouseX;
         mouseY = newMouseY;
 
-        glm::vec4 forwardVec = glm::rotate(glm::mat4(1.0f), glm::radians(playerRotationY), glm::vec3(0.0f, 1.0f, 0.0f)) *
-                               glm::rotate(glm::mat4(1.0f), glm::radians(playerRotationX), glm::vec3(1.0f, 0.0f, 0.0f)) *
-                               glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+        glm::mat4 lookMat = glm::rotate(glm::mat4(1.0f), glm::radians(playerRotationY), glm::vec3(0.0f, 1.0f, 0.0f)) *
+                            glm::rotate(glm::mat4(1.0f), glm::radians(playerRotationX), glm::vec3(1.0f, 0.0f, 0.0f));
+        glm::vec4 forwardVec = lookMat * glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
         playerForwardDir = glm::vec3(forwardVec.x, forwardVec.y, forwardVec.z);
+        glm::vec4 rightVec = lookMat * glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+        playerRightDir = glm::vec3(rightVec.x, rightVec.y, rightVec.z);
     }
 
     void init(VulkanState& vulkanState, GLFWwindow* window, int32_t width, int32_t height) {
@@ -196,17 +199,26 @@ public:
         world.update(vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
 
         glm::vec2 horizontalForwardDir = glm::normalize(glm::vec2(playerForwardDir.x, playerForwardDir.z));
+        glm::vec2 horizontalRightDir = glm::normalize(glm::vec2(playerRightDir.x, playerRightDir.z));
 
-        int32_t state = glfwGetKey(window, GLFW_KEY_W);
-        if (state == GLFW_PRESS) {
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
             playerPos.x += horizontalForwardDir.x * playerSpeed * deltaTime;
             playerPos.z += horizontalForwardDir.y * playerSpeed * deltaTime;
         }
 
-        state = glfwGetKey(window, GLFW_KEY_S);
-        if (state == GLFW_PRESS) {
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
             playerPos.x -= horizontalForwardDir.x * playerSpeed * deltaTime;
             playerPos.z -= horizontalForwardDir.y * playerSpeed * deltaTime;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+            playerPos.x -= horizontalRightDir.x * playerSpeed * deltaTime;
+            playerPos.z -= horizontalRightDir.y * playerSpeed * deltaTime;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+            playerPos.x += horizontalRightDir.x * playerSpeed * deltaTime;
+            playerPos.z += horizontalRightDir.y * playerSpeed * deltaTime;
         }
     }
 
