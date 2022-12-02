@@ -35,17 +35,17 @@ private:
 
     float playerSpeed = 3.0f;
     glm::vec3 playerPos{0.0f, 0.0f, 0.0f};
+    glm::vec3 playerForwardDir;
     float mouseSensitivity = 0.05f;
     float playerRotationX = 0, playerRotationY = 0;
-    bool firstMouseUpdate = true;
 
     World world;
 
 public:
     App() : world(32, 4) {}
 
-    void updateMousePos(float newMouseX, float newMouseY) {
-        if (!firstMouseUpdate) {
+    void updateMousePos(float newMouseX, float newMouseY, bool firstUpdate) {
+        if (!firstUpdate) {
             float dx = (newMouseY - mouseY) * mouseSensitivity;
             float dy = (newMouseX - mouseX) * mouseSensitivity;
 
@@ -59,14 +59,18 @@ public:
                 playerRotationX = 89.0f;
         }
 
-        firstMouseUpdate = false;
-
         mouseX = newMouseX;
         mouseY = newMouseY;
+
+        glm::vec4 forwardVec = glm::rotate(glm::mat4(1.0f), glm::radians(playerRotationY), glm::vec3(0.0f, 1.0f, 0.0f)) *
+                               glm::rotate(glm::mat4(1.0f), glm::radians(playerRotationX), glm::vec3(1.0f, 0.0f, 0.0f)) *
+                               glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+        playerForwardDir = glm::vec3(forwardVec.x, forwardVec.y, forwardVec.z);
     }
 
     void init(VulkanState& vulkanState, GLFWwindow* window, int32_t width, int32_t height) {
         this->window = window;
+        glfwSetWindowUserPointer(window, this);
         glfwSetInputMode(window, GLFW_STICKY_KEYS, true);
 
         if (glfwRawMouseMotionSupported())
@@ -74,10 +78,15 @@ public:
 
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-        glfwSetWindowUserPointer(window, this);
-        glfwSetCursorPosCallback(window, [](GLFWwindow* window, double posX, double posY) {
+        // First mouse update to initialize the player's rotation.
+        double initialMouseX, initialMouseY;
+        glfwGetCursorPos(window, &initialMouseX, &initialMouseY);
+        updateMousePos(static_cast<float>(initialMouseX), static_cast<float>(initialMouseY), true);
+
+        // Hook into subsequent mouse movements to update the rotation.
+        glfwSetCursorPosCallback(window, [](GLFWwindow* window, double mouseX, double mouseY) {
             App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
-            app->updateMousePos(static_cast<float>(posX), static_cast<float>(posY));
+            app->updateMousePos(static_cast<float>(mouseX), static_cast<float>(mouseY), false);
         });
 
         vulkanState.swapchain.create(vulkanState.device, vulkanState.physicalDevice,
@@ -171,8 +180,10 @@ public:
         clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
         clearValues[1].depthStencil = {1.0f, 0};
 
-        std::mt19937 rng{123};
-        siv::BasicPerlinNoise<float> noise{123};
+        const int32_t seed = 123;
+
+        std::mt19937 rng{seed};
+        siv::BasicPerlinNoise<float> noise{seed};
 
         world.generate(rng, noise);
     }
@@ -184,14 +195,18 @@ public:
 
         world.update(vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
 
+        glm::vec2 horizontalForwardDir = glm::normalize(glm::vec2(playerForwardDir.x, playerForwardDir.z));
+
         int32_t state = glfwGetKey(window, GLFW_KEY_W);
         if (state == GLFW_PRESS) {
-            playerPos.z += playerSpeed * deltaTime;
+            playerPos.x += horizontalForwardDir.x * playerSpeed * deltaTime;
+            playerPos.z += horizontalForwardDir.y * playerSpeed * deltaTime;
         }
 
         state = glfwGetKey(window, GLFW_KEY_S);
         if (state == GLFW_PRESS) {
-            playerPos.z -= playerSpeed * deltaTime;
+            playerPos.x -= horizontalForwardDir.x * playerSpeed * deltaTime;
+            playerPos.z -= horizontalForwardDir.y * playerSpeed * deltaTime;
         }
     }
 
@@ -201,15 +216,8 @@ public:
 
         UniformBufferData uboData{};
         uboData.model = glm::mat4(1.0f);
-
-        glm::vec4 forwardVec = glm::rotate(glm::mat4(1.0f), glm::radians(playerRotationY), glm::vec3(0.0f, 1.0f, 0.0f)) *
-                               glm::rotate(glm::mat4(1.0f), glm::radians(playerRotationX), glm::vec3(1.0f, 0.0f, 0.0f)) *
-                               glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
-        uboData.view = glm::lookAt(playerPos, playerPos + glm::vec3(forwardVec.x, forwardVec.y, forwardVec.z),
-                                   glm::vec3(0.0f, 1.0f, 0.0f));
-
-        uboData.proj =
-            glm::perspective(glm::radians(45.0f), extent.width / (float)extent.height, 0.1f, 200.0f);
+        uboData.view = glm::lookAt(playerPos, playerPos + playerForwardDir, glm::vec3(0.0f, 1.0f, 0.0f));
+        uboData.proj = glm::perspective(glm::radians(45.0f), extent.width / (float)extent.height, 0.1f, 200.0f);
         uboData.proj[1][1] *= -1;
 
         ubo.update(uboData);
