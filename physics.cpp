@@ -48,7 +48,7 @@ bool isOnGround(World& world, glm::vec3 pos, glm::vec3 size) {
     feetPos.y = pos.y - (size.y + feetHitboxSize) * 0.5f;
     glm::vec3 feetSize = size;
     feetSize.y = feetHitboxSize;
-    return isCollidingWithBlock(world, feetPos, size);
+    return isCollidingWithBlock(world, feetPos, feetSize);
 }
 
 RaycastHit raycast(World& world, glm::vec3 start, glm::vec3 dir, float range) {
