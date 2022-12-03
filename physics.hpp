@@ -5,6 +5,8 @@
 #include "world.hpp"
 #include "gameMath.hpp"
 
+const float gravity = 30.0f;
+
 struct RaycastHit {
     bool hit;
     Blocks block;

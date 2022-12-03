@@ -16,6 +16,12 @@
 #include "directions.hpp"
 #include "world.hpp"
 #include "physics.hpp"
+#include "player.hpp"
+#include "blockInteraction.hpp"
+
+constexpr int32_t chunkSize = 32;
+constexpr int32_t mapSizeInChunks = 4;
+constexpr int32_t chunkCount = mapSizeInChunks * mapSizeInChunks * mapSizeInChunks;
 
 class App {
 private:
@@ -34,49 +40,32 @@ private:
     float currentTime = 0;
     float mouseX = 0, mouseY = 0;
 
-    float playerSpeed = 3.0f;
-    glm::vec3 playerPos{-5.0f, -5.0f, -5.0f};
-    glm::vec3 playerSize{0.8f, 0.8f, 0.8f};
-    glm::vec3 playerForwardDir;
-    glm::vec3 playerRightDir;
-    float mouseSensitivity = 0.05f;
-    float playerRotationX = 0, playerRotationY = 0;
+    float mouseSensitivity = 0.1f;
 
     World world;
+    Player player;
+    BlockInteraction blockInteraction;
 
 public:
-    App() : world(32, 4) {}
+    App() : world(chunkSize, mapSizeInChunks) {}
 
     void updateMousePos(float newMouseX, float newMouseY, bool firstUpdate) {
+        float dx = 0.0f, dy = 0.0f;
+
         if (!firstUpdate) {
-            float dx = (newMouseY - mouseY) * mouseSensitivity;
-            float dy = (newMouseX - mouseX) * mouseSensitivity;
-
-            playerRotationX += dx;
-            playerRotationY -= dy;
-
-            if (playerRotationX < -89.0f)
-                playerRotationX = -89.0f;
-
-            if (playerRotationX > 89.0f)
-                playerRotationX = 89.0f;
+            dx = (newMouseY - mouseY) * mouseSensitivity;
+            dy = (newMouseX - mouseX) * mouseSensitivity;
         }
 
         mouseX = newMouseX;
         mouseY = newMouseY;
 
-        glm::mat4 lookMat = glm::rotate(glm::mat4(1.0f), glm::radians(playerRotationY), glm::vec3(0.0f, 1.0f, 0.0f)) *
-                            glm::rotate(glm::mat4(1.0f), glm::radians(playerRotationX), glm::vec3(1.0f, 0.0f, 0.0f));
-        glm::vec4 forwardVec = lookMat * glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
-        playerForwardDir = glm::vec3(forwardVec.x, forwardVec.y, forwardVec.z);
-        glm::vec4 rightVec = lookMat * glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-        playerRightDir = glm::vec3(rightVec.x, rightVec.y, rightVec.z);
+        player.updateRotation(dx, dy);
     }
 
     void init(VulkanState& vulkanState, GLFWwindow* window, int32_t width, int32_t height) {
         this->window = window;
         glfwSetWindowUserPointer(window, this);
-        glfwSetInputMode(window, GLFW_STICKY_KEYS, true);
 
         if (glfwRawMouseMotionSupported())
             glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
@@ -191,6 +180,11 @@ public:
         siv::BasicPerlinNoise<float> noise{seed};
 
         world.generate(rng, noise);
+
+        int32_t playerSpawnI = rng() % chunkCount;
+        glm::ivec3 playerSpawnChunk = indexTo3d(playerSpawnI, mapSizeInChunks);
+        glm::vec3 playerSpawnPos = world.getSpawnPos(playerSpawnChunk.x, playerSpawnChunk.y, playerSpawnChunk.z, true).value();
+        player.setPos(playerSpawnPos);
     }
 
     void update(VulkanState& vulkanState) {
@@ -198,56 +192,14 @@ public:
         float deltaTime = newTime - currentTime;
         currentTime = newTime;
 
+        blockInteraction.preUpdate();
+
         world.update(vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
 
-        glm::vec2 horizontalForwardDir = glm::normalize(glm::vec2(playerForwardDir.x, playerForwardDir.z));
-        glm::vec2 horizontalRightDir = glm::normalize(glm::vec2(playerRightDir.x, playerRightDir.z));
+        player.updateMovement(window, world, deltaTime);
+        player.updateInteraction(window, world, blockInteraction, deltaTime);
 
-        glm::vec3 newPlayerPos = playerPos;
-
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-            newPlayerPos.x += horizontalForwardDir.x * playerSpeed * deltaTime;
-            newPlayerPos.z += horizontalForwardDir.y * playerSpeed * deltaTime;
-        }
-
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-            newPlayerPos.x -= horizontalForwardDir.x * playerSpeed * deltaTime;
-            newPlayerPos.z -= horizontalForwardDir.y * playerSpeed * deltaTime;
-        }
-
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-            newPlayerPos.x -= horizontalRightDir.x * playerSpeed * deltaTime;
-            newPlayerPos.z -= horizontalRightDir.y * playerSpeed * deltaTime;
-        }
-
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-            newPlayerPos.x += horizontalRightDir.x * playerSpeed * deltaTime;
-            newPlayerPos.z += horizontalRightDir.y * playerSpeed * deltaTime;
-        }
-
-        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-            newPlayerPos.y += playerSpeed * deltaTime;
-        }
-
-        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-            newPlayerPos.y -= playerSpeed * deltaTime;
-        }
-
-        if (glfwGetKey(window, GLFW_KEY_N) != GLFW_PRESS) {
-            if (isCollidingWithBlock(world, glm::vec3{newPlayerPos.x, playerPos.y, playerPos.z}, playerSize)) {
-                newPlayerPos.x = playerPos.x;
-            }
-
-            if (isCollidingWithBlock(world, glm::vec3{playerPos.x, newPlayerPos.y, playerPos.z}, playerSize)) {
-                newPlayerPos.y = playerPos.y;
-            }
-
-            if (isCollidingWithBlock(world, glm::vec3{playerPos.x, playerPos.y, newPlayerPos.z}, playerSize)) {
-                newPlayerPos.z = playerPos.z;
-            }
-        }
-
-        playerPos = newPlayerPos;
+        blockInteraction.postUpdate();
     }
 
     void render(VulkanState& vulkanState, VkCommandBuffer commandBuffer, uint32_t imageIndex,
@@ -256,7 +208,7 @@ public:
 
         UniformBufferData uboData{};
         uboData.model = glm::mat4(1.0f);
-        uboData.view = glm::lookAt(playerPos, playerPos + playerForwardDir, glm::vec3(0.0f, 1.0f, 0.0f));
+        uboData.view = player.getViewMatrix();
         uboData.proj = glm::perspective(glm::radians(90.0f), extent.width / (float)extent.height, 0.1f, 128.0f);
         uboData.proj[1][1] *= -1;
 

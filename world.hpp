@@ -2,15 +2,11 @@
 
 #include <vector>
 #include <random>
+#include <optional>
 
 #include <glm/glm.hpp>
 
 #include "chunk.hpp"
-
-struct SpawnResult {
-    bool succeeded;
-    glm::vec3 pos;
-};
 
 class World {
 public:
@@ -21,7 +17,7 @@ public:
     Blocks getBlock(int32_t x, int32_t y, int32_t z);
     bool isBlockOccupied(int32_t x, int32_t y, int32_t z);
     bool isBlockSupported(int32_t x, int32_t y, int32_t z);
-    SpawnResult getSpawnPos(int32_t spawnChunkX, int32_t spawnChunkY, int32_t spawnChunkZ, bool force);
+    std::optional<glm::vec3> getSpawnPos(int32_t spawnChunkX, int32_t spawnChunkY, int32_t spawnChunkZ, bool force);
     void generate(std::mt19937& rng, siv::BasicPerlinNoise<float>& noise);
     void draw(VkCommandBuffer commandBuffer);
     void destroy(VmaAllocator allocator);

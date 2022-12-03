@@ -74,7 +74,7 @@ void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands,
 
                         vertices.push_back(VertexData {
                             vertex + glm::vec3(x, y, z),
-                            glm::vec3(1.0, 1.0, 1.0),
+                            cubeFaceColors[face] * 0.9f + noiseValue * 0.1f,
                             glm::vec3(uv.x, uv.y, static_cast<float>(block) - 1),
                         });
                     }

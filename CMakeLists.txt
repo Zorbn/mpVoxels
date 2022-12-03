@@ -45,11 +45,13 @@ add_executable(
     renderTypes.hpp
     cubeMesh.hpp
     blocks.hpp
+    directions.hpp
+    blockInteraction.cpp blockInteraction.hpp
     physics.cpp physics.hpp
     gameMath.cpp gameMath.hpp
     world.cpp world.hpp
     chunk.cpp chunk.hpp
-    directions.hpp
+    player.cpp player.hpp
     deps/perlinNoise.hpp
 )
 

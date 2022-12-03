@@ -76,7 +76,7 @@ bool World::isBlockSupported(int32_t x, int32_t y, int32_t z) {
         isBlockOccupied(x, y, z - 1);
 }
 
-SpawnResult World::getSpawnPos(int32_t spawnChunkX, int32_t spawnChunkY, int32_t spawnChunkZ, bool force) {
+std::optional<glm::vec3> World::getSpawnPos(int32_t spawnChunkX, int32_t spawnChunkY, int32_t spawnChunkZ, bool force) {
     int32_t spawnChunkWorldX = spawnChunkX * chunkSize;
     int32_t spawnChunkWorldY = spawnChunkY * chunkSize;
     int32_t spawnChunkWorldZ = spawnChunkZ * chunkSize;
@@ -88,14 +88,11 @@ SpawnResult World::getSpawnPos(int32_t spawnChunkX, int32_t spawnChunkY, int32_t
             for (int32_t x = 0; x < chunkSize; x++) {
                 if (spawnChunk.getBlock(x, y, z) != Blocks::Air) continue;
 
-                return SpawnResult {
-                    true,
-                    glm::vec3 {
-                        spawnChunkWorldX + x + 0.5,
-                        spawnChunkWorldY + y + 0.5,
-                        spawnChunkWorldZ + z + 0.5,
-                    }
-                };
+                return std::optional<glm::vec3>{{
+                    spawnChunkWorldX + x + 0.5,
+                    spawnChunkWorldY + y + 0.5,
+                    spawnChunkWorldZ + z + 0.5,
+                }};
             }
         }
     }
@@ -106,24 +103,14 @@ SpawnResult World::getSpawnPos(int32_t spawnChunkX, int32_t spawnChunkY, int32_t
         int32_t z = chunkSize / 2;
         spawnChunk.setBlock(x, y, z, Blocks::Air);
 
-        return SpawnResult {
-            true,
-            glm::vec3 {
-                spawnChunkWorldX + x + 0.5,
-                spawnChunkWorldY + y + 0.5,
-                spawnChunkWorldZ + z + 0.5,
-            }
-        };
+        return std::optional<glm::vec3>{{
+            spawnChunkWorldX + x + 0.5,
+            spawnChunkWorldY + y + 0.5,
+            spawnChunkWorldZ + z + 0.5,
+        }};
     }
 
-    return SpawnResult {
-        false,
-        glm::vec3 {
-            0,
-            0,
-            0,
-        }
-    };
+    return std::nullopt;
 }
 
 void World::generate(std::mt19937& rng, siv::BasicPerlinNoise<float>& noise) {

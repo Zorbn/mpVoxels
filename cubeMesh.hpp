@@ -102,3 +102,12 @@ const std::array<std::array<uint32_t, 6>, 6> cubeIndices = {{
     {0, 1, 2, 0, 2, 3}, // Up
     {0, 2, 1, 0, 3, 2}, // Down
 }};
+
+const std::array<glm::vec3, 6> cubeFaceColors = {
+    glm::vec3(0.9f, 0.9f, 0.9f),
+    glm::vec3(0.6f, 0.6f, 0.6f),
+    glm::vec3(0.8f, 0.8f, 0.8f),
+    glm::vec3(0.7f, 0.7f, 0.7f),
+    glm::vec3(1.0f, 1.0f, 1.0f),
+    glm::vec3(0.5f, 0.5f, 0.5f),
+};
