@@ -34,7 +34,7 @@ FetchContent_Declare(
 FetchContent_Declare(
     vkFrame
     GIT_REPOSITORY https://github.com/Zorbn/vkFrame.git
-    GIT_TAG 70182343c466f1e643ed63b86c99a14be0968faf
+    GIT_TAG 63fb90b368f345a7127cebaf64de28171756343c
 )
 
 FetchContent_MakeAvailable(vkFrame glfw glm vk_mem_alloc)

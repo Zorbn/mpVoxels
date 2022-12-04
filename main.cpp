@@ -26,6 +26,7 @@ constexpr int32_t chunkCount = mapSizeInChunks * mapSizeInChunks * mapSizeInChun
 class App {
 private:
     Pipeline pipeline;
+    Pipeline transparentPipeline;
     RenderPass renderPass;
 
     Image textureImage;
@@ -168,7 +169,51 @@ public:
                                        descriptorWrites.data(), 0, nullptr);
             });
         pipeline.create<VertexData, InstanceData>(
-            "res/cubesShader.vert.spv", "res/cubesShader.frag.spv", vulkanState.device, renderPass);
+            "res/cubesShader.vert.spv", "res/cubesShader.frag.spv", vulkanState.device, renderPass, false);
+
+        transparentPipeline.createDescriptorSetLayout(
+            vulkanState.device, [&](std::vector<VkDescriptorSetLayoutBinding>& bindings) {
+                VkDescriptorSetLayoutBinding uboLayoutBinding{};
+                uboLayoutBinding.binding = 0;
+                uboLayoutBinding.descriptorCount = 1;
+                uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                uboLayoutBinding.pImmutableSamplers = nullptr;
+                uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+                bindings.push_back(uboLayoutBinding);
+            });
+        transparentPipeline.createDescriptorPool(
+            vulkanState.maxFramesInFlight, vulkanState.device,
+            [&](std::vector<VkDescriptorPoolSize> poolSizes) {
+                poolSizes.resize(1);
+                poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                poolSizes[0].descriptorCount = static_cast<uint32_t>(vulkanState.maxFramesInFlight);
+            });
+        transparentPipeline.createDescriptorSets(
+            vulkanState.maxFramesInFlight, vulkanState.device,
+            [&](std::vector<VkWriteDescriptorSet>& descriptorWrites, VkDescriptorSet descriptorSet,
+                uint32_t i) {
+                VkDescriptorBufferInfo bufferInfo{};
+                bufferInfo.buffer = ubo.getBuffer(i);
+                bufferInfo.offset = 0;
+                bufferInfo.range = ubo.getDataSize();
+
+                descriptorWrites.resize(1);
+
+                descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrites[0].dstSet = descriptorSet;
+                descriptorWrites[0].dstBinding = 0;
+                descriptorWrites[0].dstArrayElement = 0;
+                descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                descriptorWrites[0].descriptorCount = 1;
+                descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+                vkUpdateDescriptorSets(vulkanState.device,
+                                       static_cast<uint32_t>(descriptorWrites.size()),
+                                       descriptorWrites.data(), 0, nullptr);
+            });
+        transparentPipeline.create<TransparentVertexData, InstanceData>(
+            "res/transparentShader.vert.spv", "res/transparentShader.frag.spv", vulkanState.device, renderPass, true);
 
         clearValues.resize(2);
         clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
@@ -185,6 +230,8 @@ public:
         glm::ivec3 playerSpawnChunk = indexTo3d(playerSpawnI, mapSizeInChunks);
         glm::vec3 playerSpawnPos = world.getSpawnPos(playerSpawnChunk.x, playerSpawnChunk.y, playerSpawnChunk.z, true).value();
         player.setPos(playerSpawnPos);
+
+        blockInteraction.init(vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
     }
 
     void update(VulkanState& vulkanState) {
@@ -199,7 +246,7 @@ public:
         player.updateMovement(window, world, deltaTime);
         player.updateInteraction(window, world, blockInteraction, deltaTime);
 
-        blockInteraction.postUpdate();
+        blockInteraction.postUpdate(vulkanState.commands, vulkanState.allocator, vulkanState.graphicsQueue, vulkanState.device);
     }
 
     void render(VulkanState& vulkanState, VkCommandBuffer commandBuffer, uint32_t imageIndex,
@@ -221,6 +268,9 @@ public:
 
         world.draw(commandBuffer);
 
+        transparentPipeline.bind(commandBuffer, currentFrame);
+        blockInteraction.draw(commandBuffer);
+
         renderPass.end(commandBuffer);
 
         vulkanState.commands.endBuffer(currentFrame);
@@ -233,6 +283,7 @@ public:
 
     void cleanup(VulkanState& vulkanState) {
         pipeline.cleanup(vulkanState.device);
+        transparentPipeline.cleanup(vulkanState.device);
         renderPass.cleanup(vulkanState.allocator, vulkanState.device);
 
         ubo.destroy(vulkanState.allocator);
@@ -242,6 +293,7 @@ public:
         textureImage.destroy(vulkanState.allocator);
 
         world.destroy(vulkanState.allocator);
+        blockInteraction.destroy(vulkanState.allocator);
     }
 
     int run() {

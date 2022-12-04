@@ -74,7 +74,7 @@ void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands,
 
                         vertices.push_back(VertexData {
                             vertex + glm::vec3(x, y, z),
-                            cubeFaceColors[face] * 0.9f + noiseValue * 0.1f,
+                            cubeFaceColors[face] * 0.8f + noiseValue * 0.2f,
                             glm::vec3(uv.x, uv.y, static_cast<float>(block) - 1),
                         });
                     }
@@ -86,6 +86,7 @@ void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands,
     if (firstUpdate) {
         model = Model<VertexData, uint32_t, InstanceData>::fromVerticesAndIndices(vertices, indices, 1, allocator, commands, graphicsQueue, device);
         model.updateInstances(instances, commands, allocator, graphicsQueue, device);
+        firstUpdate = false;
     } else {
         model.update(vertices, indices, commands, allocator, graphicsQueue, device);
     }

@@ -2,13 +2,11 @@
 
 #include "chunk.hpp"
 
-World::World(int32_t chunkSize, int32_t mapSizeInChunks) {
-    this->chunkSize = chunkSize;
-    this->mapSizeInChunks = mapSizeInChunks;
+World::World(int32_t chunkSize, int32_t mapSizeInChunks) : chunkSize(chunkSize), mapSizeInChunks(mapSizeInChunks) {
     mapSize = chunkSize * mapSizeInChunks;
 
     int32_t mapChunkCount = mapSizeInChunks * mapSizeInChunks * mapSizeInChunks;
-    // chunks.reserve(mapChunkCount);
+    chunks.reserve(mapChunkCount);
 
     for (int32_t i = 0; i < mapChunkCount; i++) {
         int32_t x = i % mapSizeInChunks;
