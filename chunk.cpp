@@ -3,8 +3,11 @@
 #include "world.hpp"
 
 const float shadeNoiseScale = 0.2f;
+const float hillNoiseScale = 0.05f;
+const float hillHeight = 64.0f;
+const float valleyHeight = 32.0f;
 const float caveNoiseScale = 0.1f;
-const float caveNoiseSolidThreshold = 0.4f;
+const float caveNoiseSolidThreshold = 0.7f;
 
 Chunk::Chunk(int32_t size, int32_t x, int32_t y, int32_t z) {
     this->chunkX = x;
@@ -74,7 +77,7 @@ void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands,
 
                         vertices.push_back(VertexData {
                             vertex + glm::vec3(x, y, z),
-                            cubeFaceColors[face] * 0.8f + noiseValue * 0.2f,
+                            cubeFaceColors[face] * 0.6f + noiseValue * 0.4f,
                             glm::vec3(uv.x, uv.y, static_cast<float>(block) - 1),
                         });
                     }
@@ -94,13 +97,19 @@ void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands,
 
 void Chunk::generate(std::mt19937& rng, siv::BasicPerlinNoise<float>& noise) {
     for (int32_t z = 0; z < size; z++) {
-        for (int32_t y = 0; y < size; y++) {
-            for (int32_t x = 0; x < size; x++) {
-                int32_t worldX = x + chunkX * size;
-                int32_t worldY = y + chunkY * size;
-                int32_t worldZ = z + chunkZ * size;
+        int32_t worldZ = z + chunkZ * size;
 
-                float shadeNoiseValue = noise.noise3D(worldX * shadeNoiseScale, worldY * shadeNoiseScale, worldZ * shadeNoiseScale);
+        for (int32_t x = 0; x < size; x++) {
+            int32_t worldX = x + chunkX * size;
+
+            int32_t maxHeight = floorToInt(noise.noise2D_01(worldX * hillNoiseScale, worldZ * hillNoiseScale) * hillHeight + valleyHeight);
+            if (maxHeight < 1) std::cout << maxHeight << std::endl;
+            int32_t maxY = std::min(maxHeight - chunkY * size, size);
+
+            for (int32_t y = 0; y < maxY; y++) {
+                int32_t worldY = y + chunkY * size;
+
+                float shadeNoiseValue = noise.noise3D_01(worldX * shadeNoiseScale, worldY * shadeNoiseScale, worldZ * shadeNoiseScale);
                 shadeNoise[x + y * size + z * size * size] = shadeNoiseValue;
 
                 if (shouldGenerateSolid(noise, worldX, worldY, worldZ)) {
@@ -120,6 +129,6 @@ void Chunk::destroy(VmaAllocator allocator) {
 }
 
 bool Chunk::shouldGenerateSolid(siv::BasicPerlinNoise<float>& noise, int32_t worldX, int32_t worldY, int32_t worldZ) {
-    float noiseValue = noise.noise3D(worldX * caveNoiseScale, worldY * caveNoiseScale, worldZ * caveNoiseScale);
+    float noiseValue = noise.noise3D_01(worldX * caveNoiseScale, worldY * caveNoiseScale, worldZ * caveNoiseScale);
     return noiseValue < caveNoiseSolidThreshold;
 }

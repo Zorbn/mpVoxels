@@ -19,12 +19,12 @@ void Player::updateRotation(float dx, float dy) {
 }
 
 glm::mat4 Player::getViewMatrix() {
-    return glm::lookAt(pos, pos + forwardDir, glm::vec3(0.0f, 1.0f, 0.0f));
+    return glm::lookAt(viewPos, viewPos + forwardDir, glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
 void Player::updateInteraction(GLFWwindow* window, World& world, BlockInteraction& blockInteraction, float deltaTime) {
     if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
-        RaycastHit hit = raycast(world, pos, forwardDir, 10.0f);
+        RaycastHit hit = raycast(world, viewPos, forwardDir, 10.0f);
 
         if (hit.hit) {
             blockInteraction.mineBlock(world, hit.pos.x, hit.pos.y, hit.pos.z, deltaTime);
@@ -40,25 +40,32 @@ void Player::updateMovement(GLFWwindow* window, World& world, float deltaTime) {
 
     glm::vec3 newPos = pos;
 
+    // y is forward/backward movement, x is right/left movement.
+    glm::vec2 moveDir{0.0f, 0.0f};
+
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        newPos.x += horizontalForwardDir.x * speed * deltaTime;
-        newPos.z += horizontalForwardDir.y * speed * deltaTime;
+        moveDir.y += 1.0f;
     }
 
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        newPos.x -= horizontalForwardDir.x * speed * deltaTime;
-        newPos.z -= horizontalForwardDir.y * speed * deltaTime;
+        moveDir.y -= 1.0f;
     }
 
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        newPos.x -= horizontalRightDir.x * speed * deltaTime;
-        newPos.z -= horizontalRightDir.y * speed * deltaTime;
+        moveDir.x -= 1.0f;
     }
 
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        newPos.x += horizontalRightDir.x * speed * deltaTime;
-        newPos.z += horizontalRightDir.y * speed * deltaTime;
+        moveDir.x += 1.0f;
     }
+
+    moveDir = glm::normalize(moveDir);
+
+    newPos.x += moveDir.y * horizontalForwardDir.x * speed * deltaTime;
+    newPos.z += moveDir.y * horizontalForwardDir.y * speed * deltaTime;
+
+    newPos.x += moveDir.x * horizontalRightDir.x * speed * deltaTime;
+    newPos.z += moveDir.x * horizontalRightDir.y * speed * deltaTime;
 
     // if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
     //     newPos.y += speed * deltaTime;
@@ -93,11 +100,15 @@ void Player::updateMovement(GLFWwindow* window, World& world, float deltaTime) {
         if (isCollidingWithBlock(world, glm::vec3{pos.x, pos.y, newPos.z}, size)) {
             newPos.z = pos.z;
         }
+
+        // TODO: Step up if player is colliding, block at feet is filled, and three blocks above that one are empty
     }
 
-    pos = newPos;
+    setPos(newPos);
 }
 
 void Player::setPos(glm::vec3 newPos) {
     pos = newPos;
+    viewPos = pos;
+    viewPos.y += viewHeightOffset;
 }

@@ -269,6 +269,7 @@ public:
         world.draw(commandBuffer);
 
         transparentPipeline.bind(commandBuffer, currentFrame);
+
         blockInteraction.draw(commandBuffer);
 
         renderPass.end(commandBuffer);

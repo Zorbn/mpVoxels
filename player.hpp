@@ -20,8 +20,10 @@ private:
     float speed = 5.0f;
     float jumpForce = 9.0f;
     float yVelocity;
-    glm::vec3 pos{-5.0f, -5.0f, -5.0f};
-    glm::vec3 size{0.8f, 0.8f, 0.8f};
+    float viewHeightOffset = 1.0f;
+    glm::vec3 pos;
+    glm::vec3 viewPos = pos;
+    glm::vec3 size{0.8f, 2.8f, 0.8f};
     glm::vec3 forwardDir;
     glm::vec3 rightDir;
     float rotationX = 0, rotationY = 0;

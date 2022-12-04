@@ -1,33 +1,33 @@
 #include "physics.hpp"
 
-glm::ivec3 getCornerPos(int32_t i, glm::vec3 pos, glm::vec3 size) {
-    glm::vec3 off = {
-        (i % 2) * 2 - 1,
-        i / 4 * 2 - 1,
-        ((i / 2) % 2) * 2 - 1,
-    };
-
-    return floorToInt(pos + size * 0.5f * off);
-}
-
 bool isCollidingWithBlock(World& world, glm::vec3 pos, glm::vec3 size) {
-    for (int32_t i = 0; i < 8; i++) {
-        glm::ivec3 corner = getCornerPos(i, pos, size);
-
-        if (world.isBlockOccupied(corner.x, corner.y, corner.z)) {
-            return true;
-        }
-    }
-
-    return false;
+    return getBlockCollision(world, pos, size).has_value();
 }
 
 std::optional<glm::ivec3> getBlockCollision(World& world, glm::vec3 pos, glm::vec3 size) {
-    for (int32_t i = 0; i < 8; i++) {
-        glm::ivec3 corner = getCornerPos(i, pos, size);
+    // The position supplied is the center of the bounding box.
+    glm::vec3 pos0 = pos - size * 0.5f;
+    glm::vec3 pos1 = pos + size * 0.5f;
 
-        if (world.isBlockOccupied(corner.x, corner.y, corner.z)) {
-            return std::optional<glm::ivec3>{corner};
+    glm::ivec3 steps = floorToInt(size) + 1;
+    glm::vec3 interp;
+
+    // Interpolate between pos0 and pos1, checking each block between them.
+    for (int32_t x = 0; x <= steps.x; x++) {
+        interp.x = pos0.x + (static_cast<float>(x) / steps.x) * size.x;
+
+        for (int32_t y = 0; y <= steps.y; y++) {
+            interp.y = pos0.y + (static_cast<float>(y) / steps.y) * size.y;
+
+            for (int32_t z = 0; z <= steps.z; z++) {
+                interp.z = pos0.z + (static_cast<float>(z) / steps.z) * size.z;
+
+                glm::ivec3 interpBlock = floorToInt(interp);
+
+                if (world.isBlockOccupied(interpBlock.x, interpBlock.y, interpBlock.z)) {
+                    return std::optional<glm::ivec3>{interpBlock};
+                }
+            }
         }
     }
 

@@ -11,6 +11,7 @@
 #include "blocks.hpp"
 #include "renderTypes.hpp"
 #include "directions.hpp"
+#include "gameMath.hpp"
 #include "deps/perlinNoise.hpp"
 
 class World;

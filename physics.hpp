@@ -15,7 +15,6 @@ struct RaycastHit {
     glm::ivec3 lastPos;
 };
 
-glm::ivec3 getCornerPos(int32_t i, glm::vec3 pos, glm::vec3 size);
 bool isCollidingWithBlock(World& world, glm::vec3 pos, glm::vec3 size);
 std::optional<glm::ivec3> getBlockCollision(World& world, glm::vec3 pos, glm::vec3 size);
 bool overlapsBlock(float x, glm::vec3 pos, glm::vec3 size, glm::ivec3 blockPos);
