@@ -19,8 +19,8 @@ void Player::updateRotation(float dx, float dy) {
 }
 
 glm::mat4 Player::getViewMatrix() {
-    glm::vec4 upVec = glm::rotate(glm::mat4(1.0f), glm::radians(viewRoll), forwardDir) * glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
-    glm::vec4 forwardVec = glm::rotate(glm::mat4(1.0f), glm::radians(viewPitch), rightDir) * glm::vec4(forwardDir.x, forwardDir.y, forwardDir.z, 1.0f);
+    glm::vec4 upVec = glm::rotate(glm::mat4(1.0f), glm::radians(viewTilt.x), forwardDir) * glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+    glm::vec4 forwardVec = glm::rotate(glm::mat4(1.0f), glm::radians(viewTilt.y), rightDir) * glm::vec4(forwardDir.x, forwardDir.y, forwardDir.z, 1.0f);
     return glm::lookAt(viewPos, viewPos + glm::vec3(forwardVec.x, forwardVec.y, forwardVec.z), glm::vec3(upVec.x, upVec.y, upVec.z));
 }
 
@@ -92,8 +92,10 @@ void Player::updateMovement(GLFWwindow* window, World& world, float deltaTime) {
         moveDir.x += 1.0f;
     }
 
-    viewTargetRoll = moveDir.x * -viewMaxTilt;
-    viewTargetPitch = moveDir.y * viewMaxTilt;
+    viewTargetTilt = {
+        moveDir.x * -viewMaxTilt,
+        moveDir.y * viewMaxTilt,
+    };
 
     if (glm::length(moveDir) != 0.0f) {
         moveDir = glm::normalize(moveDir);
@@ -156,8 +158,7 @@ void Player::increaseViewInterp() {
 }
 
 void Player::updateView(float deltaTime) {
-    viewRoll += (viewTargetRoll - viewRoll) * deltaTime * viewTiltInterpSpeed;
-    viewPitch += (viewTargetPitch - viewPitch) * deltaTime * viewTiltInterpSpeed;
+    viewTilt += (viewTargetTilt - viewTilt) * deltaTime * viewTiltInterpSpeed;
 
     viewHeightInterp -= deltaTime * viewHeightInterpSpeed;
 

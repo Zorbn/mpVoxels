@@ -29,10 +29,9 @@ private:
     float viewHeightInterp = 0.0f;
     float viewHeightInterpSpeed = 8.0f;
 
-    float viewRoll = 0.0f;
-    float viewPitch = 0.0f;
-    float viewTargetRoll = 0.0f;
-    float viewTargetPitch = 0.0f;
+    // x is roll, y is tilt.
+    glm::vec2 viewTilt{0.0f, 0.0f};
+    glm::vec2 viewTargetTilt{0.0f, 0.0f};
     float viewTiltInterpSpeed = 8.0f;
     float viewMaxTilt = 2.5f;
 
