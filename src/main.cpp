@@ -9,7 +9,7 @@
 
 #include "GLFW/glfw3.h"
 
-#include "deps/perlinNoise.hpp"
+#include "../deps/perlinNoise.hpp"
 
 #include "renderTypes.hpp"
 #include "cubeMesh.hpp"

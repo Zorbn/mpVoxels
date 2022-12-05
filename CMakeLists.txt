@@ -41,17 +41,17 @@ FetchContent_MakeAvailable(vkFrame glfw glm vk_mem_alloc)
 
 add_executable(
     ${PROJ_NAME}
-    main.cpp
-    renderTypes.hpp
-    cubeMesh.hpp
-    blocks.hpp
-    directions.hpp
-    blockInteraction.cpp blockInteraction.hpp
-    physics.cpp physics.hpp
-    gameMath.cpp gameMath.hpp
-    world.cpp world.hpp
-    chunk.cpp chunk.hpp
-    player.cpp player.hpp
+    src/main.cpp
+    src/renderTypes.hpp
+    src/cubeMesh.hpp
+    src/blocks.hpp
+    src/directions.hpp
+    src/blockInteraction.cpp src/blockInteraction.hpp
+    src/physics.cpp src/physics.hpp
+    src/gameMath.cpp src/gameMath.hpp
+    src/world.cpp src/world.hpp
+    src/chunk.cpp src/chunk.hpp
+    src/player.cpp src/player.hpp
     deps/perlinNoise.hpp
 )
 
