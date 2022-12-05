@@ -12,6 +12,7 @@ class Player {
 public:
     void updateRotation(float dx, float dy);
     glm::mat4 Player::getViewMatrix();
+    float getFov();
     bool tryStepUp(World& world, glm::vec3 targetPos, glm::ivec3 hitBlock, bool isGrounded);
     void updateMovement(GLFWwindow* window, World& world, float deltaTime);
     void updateInteraction(GLFWwindow* window, World& world, BlockInteraction& blockInteraction, float deltaTime);
@@ -22,6 +23,7 @@ public:
 
 private:
     float speed = 5.0f;
+    float sprintMultiplier = 1.4f;
     float jumpForce = 9.0f;
     float yVelocity = 0.0f;
 
@@ -34,6 +36,14 @@ private:
     glm::vec2 viewTargetTilt{0.0f, 0.0f};
     float viewTiltInterpSpeed = 8.0f;
     float viewMaxTilt = 2.5f;
+    // Used to prevent the player flipping the camera.
+    float maxPitch = 89.0f;
+
+    float fov = 0.0f;
+    float defaultFov = 90.0f;
+    float targetFov = 0.0f;
+    float fovSprintMultiplier = 1.2f;
+    float fovInterpSpeed = 8.0f;
 
     float range = 10.0f;
     glm::vec3 pos;

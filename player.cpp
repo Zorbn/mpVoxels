@@ -1,14 +1,8 @@
 #include "player.hpp"
 
 void Player::updateRotation(float dx, float dy) {
-    rotationX += dx;
+    rotationX = glm::clamp(rotationX + dx, -maxPitch, maxPitch);
     rotationY -= dy;
-
-    if (rotationX < -89.0f)
-        rotationX = -89.0f;
-
-    if (rotationX > 89.0f)
-        rotationX = 89.0f;
 
     glm::mat4 lookMat = glm::rotate(glm::mat4(1.0f), glm::radians(rotationY), glm::vec3(0.0f, 1.0f, 0.0f)) *
                         glm::rotate(glm::mat4(1.0f), glm::radians(rotationX), glm::vec3(1.0f, 0.0f, 0.0f));
@@ -20,8 +14,13 @@ void Player::updateRotation(float dx, float dy) {
 
 glm::mat4 Player::getViewMatrix() {
     glm::vec4 upVec = glm::rotate(glm::mat4(1.0f), glm::radians(viewTilt.x), forwardDir) * glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
-    glm::vec4 forwardVec = glm::rotate(glm::mat4(1.0f), glm::radians(viewTilt.y), rightDir) * glm::vec4(forwardDir.x, forwardDir.y, forwardDir.z, 1.0f);
+    glm::vec4 forwardVec = glm::rotate(glm::mat4(1.0f), glm::radians(glm::clamp(viewTilt.y, -maxPitch - rotationX, maxPitch - rotationX)), rightDir) *
+                           glm::vec4(forwardDir.x, forwardDir.y, forwardDir.z, 1.0f);
     return glm::lookAt(viewPos, viewPos + glm::vec3(forwardVec.x, forwardVec.y, forwardVec.z), glm::vec3(upVec.x, upVec.y, upVec.z));
+}
+
+float Player::getFov() {
+    return fov;
 }
 
 void Player::updateInteraction(GLFWwindow* window, World& world, BlockInteraction& blockInteraction, float deltaTime) {
@@ -101,10 +100,21 @@ void Player::updateMovement(GLFWwindow* window, World& world, float deltaTime) {
         moveDir = glm::normalize(moveDir);
     }
 
-    float xVelocity = moveDir.y * horizontalForwardDir.x * speed * deltaTime +
-                      moveDir.x * horizontalRightDir.x * speed * deltaTime;
-    float zVelocity = moveDir.y * horizontalForwardDir.y * speed * deltaTime +
-                      moveDir.x * horizontalRightDir.y * speed * deltaTime;
+    float modifiedSpeed = speed * deltaTime;
+
+    bool isSprinting = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS;
+
+    if (isSprinting) {
+        modifiedSpeed *= sprintMultiplier;
+        targetFov = defaultFov * fovSprintMultiplier;
+    } else {
+        targetFov = defaultFov;
+    }
+
+    float xVelocity = moveDir.y * horizontalForwardDir.x * modifiedSpeed +
+                      moveDir.x * horizontalRightDir.x * modifiedSpeed;
+    float zVelocity = moveDir.y * horizontalForwardDir.y * modifiedSpeed +
+                      moveDir.x * horizontalRightDir.y * modifiedSpeed;
 
     yVelocity -= gravity * deltaTime;
 
@@ -158,8 +168,8 @@ void Player::increaseViewInterp() {
 }
 
 void Player::updateView(float deltaTime) {
+    fov += (targetFov - fov) * deltaTime * fovInterpSpeed;
     viewTilt += (viewTargetTilt - viewTilt) * deltaTime * viewTiltInterpSpeed;
-
     viewHeightInterp -= deltaTime * viewHeightInterpSpeed;
 
     if (viewHeightInterp < 0.0f) {

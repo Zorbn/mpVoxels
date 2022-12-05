@@ -232,12 +232,19 @@ public:
         player.setPos(playerSpawnPos);
 
         blockInteraction.init(vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
+
+        currentTime = static_cast<float>(glfwGetTime());
     }
 
     void update(VulkanState& vulkanState) {
         float newTime = static_cast<float>(glfwGetTime());
         float deltaTime = newTime - currentTime;
         currentTime = newTime;
+
+        // Ignore outlier deltaTime values to prevent the simulation from moving too fast.
+        if (deltaTime > 0.1f) {
+            return;
+        }
 
         blockInteraction.preUpdate();
 
@@ -256,7 +263,7 @@ public:
         UniformBufferData uboData{};
         uboData.model = glm::mat4(1.0f);
         uboData.view = player.getViewMatrix();
-        uboData.proj = glm::perspective(glm::radians(90.0f), extent.width / (float)extent.height, 0.1f, 128.0f);
+        uboData.proj = glm::perspective(glm::radians(player.getFov()), extent.width / (float)extent.height, 0.1f, 128.0f);
         uboData.proj[1][1] *= -1;
 
         ubo.update(uboData);
