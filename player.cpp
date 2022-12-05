@@ -24,21 +24,52 @@ glm::mat4 Player::getViewMatrix() {
 
 void Player::updateInteraction(GLFWwindow* window, World& world, BlockInteraction& blockInteraction, float deltaTime) {
     if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
-        RaycastHit hit = raycast(world, viewPos, forwardDir, 10.0f);
+        RaycastHit hit = raycast(world, viewPos, forwardDir, range);
 
         if (hit.hit) {
             blockInteraction.mineBlock(world, hit.pos.x, hit.pos.y, hit.pos.z, deltaTime);
         }
     }
+    // } else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+    //     RaycastHit hit = raycast(world, viewPos, forwardDir, range);
+
+    //     if (hit.hit) {
+    //         blockInteraction.placeBlock(world, hit.lastPos.x, hit.lastPos.y, hit.lastPos.z, Blocks::Stone);
+    //     }
+    // }
+}
+
+// Setup up a single block if there is space for the place at the target position. (The target position
+// is where the player was headed when it collided with a wall)
+bool Player::tryStepUp(World& world, glm::vec3 targetPos, glm::ivec3 hitBlock, bool isGrounded) {
+    glm::ivec3 feetPos(hitBlock.x, floorToInt(pos.y - size.y * 0.5f), hitBlock.z);
+
+    if (isGrounded &&
+        world.getBlock(feetPos.x, feetPos.y, feetPos.z) != Blocks::Air &&
+        !isCollidingWithBlock(world, glm::vec3(targetPos.x, targetPos.y + 1.0f, targetPos.z), size)) {
+
+        increaseViewInterp();
+        setPos(glm::vec3(pos.x, pos.y + 1.0f, pos.z));
+
+        return true;
+    }
+
+    return false;
 }
 
 void Player::updateMovement(GLFWwindow* window, World& world, float deltaTime) {
     bool isGrounded = isOnGround(world, pos, size);
 
-    glm::vec2 horizontalForwardDir = glm::normalize(glm::vec2(forwardDir.x, forwardDir.z));
-    glm::vec2 horizontalRightDir = glm::normalize(glm::vec2(rightDir.x, rightDir.z));
+    glm::vec2 horizontalForwardDir = glm::vec2(forwardDir.x, forwardDir.z);
+    glm::vec2 horizontalRightDir = glm::vec2(rightDir.x, rightDir.z);
 
-    glm::vec3 newPos = pos;
+    if (glm::length(horizontalForwardDir) != 0.0f) {
+        horizontalForwardDir = glm::normalize(horizontalForwardDir);
+    }
+
+    if (glm::length(horizontalRightDir) != 0.0f) {
+        horizontalRightDir = glm::normalize(horizontalRightDir);
+    }
 
     // y is forward/backward movement, x is right/left movement.
     glm::vec2 moveDir{0.0f, 0.0f};
@@ -59,21 +90,14 @@ void Player::updateMovement(GLFWwindow* window, World& world, float deltaTime) {
         moveDir.x += 1.0f;
     }
 
-    moveDir = glm::normalize(moveDir);
+    if (glm::length(moveDir) != 0.0f) {
+        moveDir = glm::normalize(moveDir);
+    }
 
-    newPos.x += moveDir.y * horizontalForwardDir.x * speed * deltaTime;
-    newPos.z += moveDir.y * horizontalForwardDir.y * speed * deltaTime;
-
-    newPos.x += moveDir.x * horizontalRightDir.x * speed * deltaTime;
-    newPos.z += moveDir.x * horizontalRightDir.y * speed * deltaTime;
-
-    // if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-    //     newPos.y += speed * deltaTime;
-    // }
-
-    // if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-    //     newPos.y -= speed * deltaTime;
-    // }
+    float xVelocity = moveDir.y * horizontalForwardDir.x * speed * deltaTime +
+                      moveDir.x * horizontalRightDir.x * speed * deltaTime;
+    float zVelocity = moveDir.y * horizontalForwardDir.y * speed * deltaTime +
+                      moveDir.x * horizontalRightDir.y * speed * deltaTime;
 
     yVelocity -= gravity * deltaTime;
 
@@ -85,30 +109,61 @@ void Player::updateMovement(GLFWwindow* window, World& world, float deltaTime) {
         }
     }
 
-    newPos.y += yVelocity * deltaTime;
+    glm::vec3 newPos = pos;
 
-    if (glfwGetKey(window, GLFW_KEY_N) != GLFW_PRESS) {
-        if (isCollidingWithBlock(world, glm::vec3{newPos.x, pos.y, pos.z}, size)) {
-            newPos.x = pos.x;
+    bool noClip = glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS;
+
+    if (!noClip) {
+        newPos.x += xVelocity;
+
+        auto collision = getBlockCollision(world, glm::vec3{newPos.x, pos.y, pos.z}, size);
+        if (collision.has_value()) {
+            glm::ivec3 hitBlock = collision.value();
+            if (!tryStepUp(world, newPos, hitBlock, isGrounded)) {
+                newPos.x = pos.x;
+            }
         }
+
+        newPos.z += zVelocity;
+
+        collision = getBlockCollision(world, glm::vec3{pos.x, pos.y, newPos.z}, size);
+        if (isCollidingWithBlock(world, glm::vec3{pos.x, pos.y, newPos.z}, size)) {
+            glm::ivec3 hitBlock = collision.value();
+            if (!tryStepUp(world, newPos, hitBlock, isGrounded)) {
+                newPos.z = pos.z;
+            }
+        }
+
+        newPos.y = pos.y + yVelocity * deltaTime;
 
         if (isCollidingWithBlock(world, glm::vec3{pos.x, newPos.y, pos.z}, size)) {
             yVelocity = 0;
             newPos.y = pos.y;
         }
-
-        if (isCollidingWithBlock(world, glm::vec3{pos.x, pos.y, newPos.z}, size)) {
-            newPos.z = pos.z;
-        }
-
-        // TODO: Step up if player is colliding, block at feet is filled, and three blocks above that one are empty
     }
 
+    updateViewInterp(deltaTime);
     setPos(newPos);
+}
+
+void Player::increaseViewInterp() {
+    viewHeightInterp++;
+}
+
+void Player::updateViewInterp(float deltaTime) {
+    viewHeightInterp -= deltaTime * viewHeightInterpSpeed;
+
+    if (viewHeightInterp < 0.0f) {
+        viewHeightInterp = 0.0f;
+    }
+}
+
+void Player::updateViewPos() {
+    viewPos = pos;
+    viewPos.y += viewHeightOffset - viewHeightInterp;
 }
 
 void Player::setPos(glm::vec3 newPos) {
     pos = newPos;
-    viewPos = pos;
-    viewPos.y += viewHeightOffset;
+    updateViewPos();
 }
