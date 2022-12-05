@@ -16,7 +16,7 @@ public:
     void updateMovement(GLFWwindow* window, World& world, float deltaTime);
     void updateInteraction(GLFWwindow* window, World& world, BlockInteraction& blockInteraction, float deltaTime);
     void increaseViewInterp();
-    void updateViewInterp(float deltaTime);
+    void updateView(float deltaTime);
     void updateViewPos();
     void setPos(glm::vec3 newPos);
 
@@ -24,9 +24,18 @@ private:
     float speed = 5.0f;
     float jumpForce = 9.0f;
     float yVelocity = 0.0f;
+
     float viewHeightOffset = 1.0f;
     float viewHeightInterp = 0.0f;
     float viewHeightInterpSpeed = 8.0f;
+
+    float viewRoll = 0.0f;
+    float viewPitch = 0.0f;
+    float viewTargetRoll = 0.0f;
+    float viewTargetPitch = 0.0f;
+    float viewTiltInterpSpeed = 8.0f;
+    float viewMaxTilt = 2.5f;
+
     float range = 10.0f;
     glm::vec3 pos;
     glm::vec3 viewPos = pos;
