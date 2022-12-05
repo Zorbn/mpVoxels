@@ -20,11 +20,15 @@ class Chunk {
 public:
     Chunk(int32_t size, int32_t x, int32_t y, int32_t z);
     int32_t getBlockIndex(int32_t x, int32_t y, int32_t z);
-    bool setBlock(int32_t x, int32_t y, int32_t z, Blocks type);
+    bool setBlock(World& world, int32_t x, int32_t y, int32_t z, Blocks type);
     Blocks getBlock(int32_t x, int32_t y, int32_t z);
+    bool isBlockOccupied(int32_t x, int32_t y, int32_t z);
+    void setLitColumn(World& world, int32_t x, int32_t topY, int32_t z, bool lit);
+    void setLit(int32_t x, int32_t y, int32_t z, bool lit);
+    bool getLit(int32_t x, int32_t y, int32_t z);
     void update(World& world, VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device);
     void updateMesh(World& world, VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device);
-    void generate(std::mt19937& rng, siv::BasicPerlinNoise<float>& noise);
+    void generate(World& world, std::mt19937& rng, siv::BasicPerlinNoise<float>& noise);
     void draw(VkCommandBuffer commandBuffer);
     void destroy(VmaAllocator allocator);
 
@@ -38,6 +42,7 @@ private:
     int32_t size;
 
     std::vector<Blocks> data;
+    std::vector<bool> lightMap;
     std::vector<float> shadeNoise;
 
     std::vector<VertexData> vertices;

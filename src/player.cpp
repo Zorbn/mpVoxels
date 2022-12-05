@@ -46,7 +46,7 @@ bool Player::tryStepUp(World& world, glm::vec3 targetPos, glm::ivec3 hitBlock, b
     glm::ivec3 feetPos(hitBlock.x, floorToInt(pos.y - size.y * 0.5f), hitBlock.z);
 
     if (isGrounded &&
-        world.getBlock(feetPos.x, feetPos.y, feetPos.z) != Blocks::Air &&
+        world.isBlockOccupied(feetPos.x, feetPos.y, feetPos.z) &&
         !isCollidingWithBlock(world, glm::vec3(targetPos.x, targetPos.y + 1.0f, targetPos.z), size)) {
 
         increaseViewInterp();

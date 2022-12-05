@@ -36,7 +36,7 @@ void World::setBlock(int32_t x, int32_t y, int32_t z, Blocks block) {
     int32_t localY = y % chunkSize;
     int32_t localZ = z % chunkSize;
     Chunk& chunk = getChunk(chunkX, chunkY, chunkZ);
-    if (!chunk.setBlock(localX, localY, localZ, block)) return;
+    if (!chunk.setBlock(*this, localX, localY, localZ, block)) return;
 
     int32_t maxPos = chunkSize - 1;
 
@@ -59,6 +59,19 @@ Blocks World::getBlock(int32_t x, int32_t y, int32_t z) {
     int32_t localZ = z % chunkSize;
     Chunk& chunk = getChunk(chunkX, chunkY, chunkZ);
     return chunk.getBlock(localX, localY, localZ);
+}
+
+bool World::getLit(int32_t x, int32_t y, int32_t z) {
+    if (x < 0 || x >= mapSize || y < 0 || y >= mapSize || z < 0 || z >= mapSize) return false;
+
+    int32_t chunkX = x / chunkSize;
+    int32_t chunkY = y / chunkSize;
+    int32_t chunkZ = z / chunkSize;
+    int32_t localX = x % chunkSize;
+    int32_t localY = y % chunkSize;
+    int32_t localZ = z % chunkSize;
+    Chunk& chunk = getChunk(chunkX, chunkY, chunkZ);
+    return chunk.getLit(localX, localY, localZ);
 }
 
 bool World::isBlockOccupied(int32_t x, int32_t y, int32_t z) {
@@ -84,7 +97,7 @@ std::optional<glm::vec3> World::getSpawnPos(int32_t spawnChunkX, int32_t spawnCh
     for (int32_t z = 0; z < chunkSize; z++) {
         for (int32_t y = 0; y < chunkSize; y++) {
             for (int32_t x = 0; x < chunkSize; x++) {
-                if (spawnChunk.getBlock(x, y, z) != Blocks::Air) continue;
+                if (spawnChunk.isBlockOccupied(x, y, z)) continue;
 
                 return std::optional<glm::vec3>{{
                     spawnChunkWorldX + x + 0.5,
@@ -99,7 +112,7 @@ std::optional<glm::vec3> World::getSpawnPos(int32_t spawnChunkX, int32_t spawnCh
         int32_t x = chunkSize / 2;
         int32_t y = chunkSize / 2;
         int32_t z = chunkSize / 2;
-        spawnChunk.setBlock(x, y, z, Blocks::Air);
+        spawnChunk.setBlock(*this, x, y, z, Blocks::Air);
 
         return std::optional<glm::vec3>{{
             spawnChunkWorldX + x + 0.5,
@@ -115,7 +128,7 @@ void World::generate(std::mt19937& rng, siv::BasicPerlinNoise<float>& noise) {
     for (int32_t z = 0; z < mapSizeInChunks; z++) {
         for (int32_t y = 0; y < mapSizeInChunks; y++) {
             for (int32_t x = 0; x < mapSizeInChunks; x++) {
-                getChunk(x, y, z).generate(rng, noise);
+                getChunk(x, y, z).generate(*this, rng, noise);
             }
         }
     }

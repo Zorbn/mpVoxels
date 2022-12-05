@@ -15,6 +15,7 @@ public:
     void updateChunk(int32_t x, int32_t y, int32_t z);
     void setBlock(int32_t x, int32_t y, int32_t z, Blocks block);
     Blocks getBlock(int32_t x, int32_t y, int32_t z);
+    bool getLit(int32_t x, int32_t y, int32_t z);
     bool isBlockOccupied(int32_t x, int32_t y, int32_t z);
     bool isBlockSupported(int32_t x, int32_t y, int32_t z);
     std::optional<glm::vec3> getSpawnPos(int32_t spawnChunkX, int32_t spawnChunkY, int32_t spawnChunkZ, bool force);
