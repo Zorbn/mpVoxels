@@ -63,6 +63,7 @@ void Chunk::setLitColumn(World& world, int32_t x, int32_t topY, int32_t z, bool 
 
 void Chunk::setLit(int32_t x, int32_t y, int32_t z, bool lit) {
     lightMap[y + x * size + z * size * size] = lit;
+    needsUpdate = true;
 }
 
 bool Chunk::getLit(int32_t x, int32_t y, int32_t z) {
