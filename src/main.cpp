@@ -18,6 +18,7 @@
 #include "physics.hpp"
 #include "player.hpp"
 #include "blockInteraction.hpp"
+#include "primitiveMeshes.hpp"
 
 constexpr int32_t chunkSize = 32;
 constexpr int32_t mapSizeInChunks = 4;
@@ -33,6 +34,9 @@ private:
     Image textureImage;
     VkImageView textureImageView;
     VkSampler textureSampler;
+    Image uiTextureImage;
+    VkImageView uiTextureImageView;
+    VkSampler uiTextureSampler;
 
     UniformBuffer<UniformBufferData> ubo;
     UniformBuffer<UniformBufferData> uiUbo;
@@ -40,6 +44,7 @@ private:
     std::vector<VkClearValue> clearValues;
 
     GLFWwindow* window;
+    float windowWidth, windowHeight;
     float currentTime = 0;
     float mouseX = 0, mouseY = 0;
 
@@ -48,7 +53,7 @@ private:
     World world;
     Player player;
     BlockInteraction blockInteraction;
-    Model<TransparentVertexData, uint32_t, InstanceData> crosshair;
+    Model<VertexData, uint16_t, InstanceData> crosshair;
 
 public:
     App() : world(chunkSize, mapSizeInChunks) {}
@@ -68,6 +73,8 @@ public:
     }
 
     void init(VulkanState& vulkanState, GLFWwindow* window, int32_t width, int32_t height) {
+        windowWidth = static_cast<float>(width);
+        windowHeight = static_cast<float>(height);
         this->window = window;
         glfwSetWindowUserPointer(window, this);
 
@@ -99,6 +106,13 @@ public:
                                                  vulkanState.device, true, 16, 16, 4);
         textureImageView = textureImage.createTextureView(vulkanState.device);
         textureSampler = textureImage.createTextureSampler(
+            vulkanState.physicalDevice, vulkanState.device, VK_FILTER_NEAREST, VK_FILTER_NEAREST);
+
+        uiTextureImage = Image::createTextureArray("res/uiImg.png", vulkanState.allocator,
+                                                 vulkanState.commands, vulkanState.graphicsQueue,
+                                                 vulkanState.device, false, 16, 16, 2);
+        uiTextureImageView = uiTextureImage.createTextureView(vulkanState.device);
+        uiTextureSampler = uiTextureImage.createTextureSampler(
             vulkanState.physicalDevice, vulkanState.device, VK_FILTER_NEAREST, VK_FILTER_NEAREST);
 
         const VkExtent2D& extent = vulkanState.swapchain.getExtent();
@@ -228,14 +242,24 @@ public:
                 uboLayoutBinding.pImmutableSamplers = nullptr;
                 uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
+                VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+                samplerLayoutBinding.binding = 1;
+                samplerLayoutBinding.descriptorCount = 1;
+                samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                samplerLayoutBinding.pImmutableSamplers = nullptr;
+                samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
                 bindings.push_back(uboLayoutBinding);
+                bindings.push_back(samplerLayoutBinding);
             });
         uiPipeline.createDescriptorPool(
             vulkanState.maxFramesInFlight, vulkanState.device,
             [&](std::vector<VkDescriptorPoolSize> poolSizes) {
-                poolSizes.resize(1);
+                poolSizes.resize(2);
                 poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                 poolSizes[0].descriptorCount = static_cast<uint32_t>(vulkanState.maxFramesInFlight);
+                poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                poolSizes[1].descriptorCount = static_cast<uint32_t>(vulkanState.maxFramesInFlight);
             });
         uiPipeline.createDescriptorSets(
             vulkanState.maxFramesInFlight, vulkanState.device,
@@ -246,7 +270,12 @@ public:
                 bufferInfo.offset = 0;
                 bufferInfo.range = uiUbo.getDataSize();
 
-                descriptorWrites.resize(1);
+                VkDescriptorImageInfo imageInfo{};
+                imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                imageInfo.imageView = uiTextureImageView;
+                imageInfo.sampler = uiTextureSampler;
+
+                descriptorWrites.resize(2);
 
                 descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                 descriptorWrites[0].dstSet = descriptorSet;
@@ -256,11 +285,19 @@ public:
                 descriptorWrites[0].descriptorCount = 1;
                 descriptorWrites[0].pBufferInfo = &bufferInfo;
 
+                descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrites[1].dstSet = descriptorSet;
+                descriptorWrites[1].dstBinding = 1;
+                descriptorWrites[1].dstArrayElement = 0;
+                descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                descriptorWrites[1].descriptorCount = 1;
+                descriptorWrites[1].pImageInfo = &imageInfo;
+
                 vkUpdateDescriptorSets(vulkanState.device,
                                        static_cast<uint32_t>(descriptorWrites.size()),
                                        descriptorWrites.data(), 0, nullptr);
             });
-        uiPipeline.create<TransparentVertexData, InstanceData>(
+        uiPipeline.create<VertexData, InstanceData>(
             "res/uiShader.vert.spv", "res/uiShader.frag.spv", vulkanState.device, renderPass, true);
 
         clearValues.resize(2);
@@ -283,29 +320,24 @@ public:
 
         currentTime = static_cast<float>(glfwGetTime());
 
-        std::vector<TransparentVertexData> crosshairVertices;
-        std::vector<uint32_t> crosshairIndices;
-        for (int32_t face = 0; face < 6; face++) {
-            size_t vertexCount = crosshairVertices.size();
-            for (uint32_t index : cubeIndices[face]) {
-                crosshairIndices.push_back(index + static_cast<uint32_t>(vertexCount));
-            }
+        std::vector<VertexData> crosshairVertices;
+        size_t vertexCount = crosshairVertices.size();
 
-            for (size_t i = 0; i < 4; i++) {
-                glm::vec3 vertex = cubeVertices[face][i];
-                glm::vec2 uv = cubeUvs[face][i];
+        for (size_t i = 0; i < 4; i++) {
+            glm::vec3 vertex = centeredSquareVertices[i];
+            glm::vec2 uv = cubeUvs[1][i];
 
-                crosshairVertices.push_back(TransparentVertexData {
-                    vertex,
-                    glm::vec4(1.0f, 0.0f, 0.0f, 1.0f),
-                });
-            }
+            crosshairVertices.push_back(VertexData {
+                vertex * 16.0f,
+                glm::vec3(1.0f, 1.0f, 1.0f),
+                glm::vec3(uv.x, uv.y, 0.0f),
+            });
         }
 
-        crosshair = Model<TransparentVertexData, uint32_t, InstanceData>::fromVerticesAndIndices(crosshairVertices, crosshairIndices, 1,
+        crosshair = Model<VertexData, uint16_t, InstanceData>::fromVerticesAndIndices(crosshairVertices, centeredSquareIndices, 1,
             vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
         std::vector<InstanceData> crosshairInstances;
-        crosshairInstances.push_back(InstanceData{glm::vec3(0.0f, 0.0f, 0.0f)});
+        crosshairInstances.push_back(InstanceData{glm::vec3(0.0f)});
         crosshair.updateInstances(crosshairInstances, vulkanState.commands, vulkanState.allocator, vulkanState.graphicsQueue, vulkanState.device);
     }
 
@@ -341,7 +373,7 @@ public:
 
         ubo.update(uboData);
 
-        uboData.proj = glm::ortho(640 * -0.5f, 640 * 0.5f, 480 * -0.5f, 480 * 0.5f, -10.0f, 10.0f);
+        uboData.proj = glm::ortho(-windowWidth * 0.5f, windowWidth * 0.5f, -windowHeight * 0.5f, windowHeight * 0.5f, -10.0f, 10.0f);
         uboData.proj[1][1] *= -1;
 
         uiUbo.update(uboData);
@@ -367,6 +399,9 @@ public:
     }
 
     void resize(VulkanState& vulkanState, int32_t width, int32_t height) {
+        windowWidth = static_cast<float>(width);
+        windowHeight = static_cast<float>(height);
+
         renderPass.recreate(vulkanState.physicalDevice, vulkanState.device, vulkanState.allocator,
                             vulkanState.swapchain);
     }
@@ -383,6 +418,9 @@ public:
         vkDestroySampler(vulkanState.device, textureSampler, nullptr);
         vkDestroyImageView(vulkanState.device, textureImageView, nullptr);
         textureImage.destroy(vulkanState.allocator);
+        vkDestroySampler(vulkanState.device, uiTextureSampler, nullptr);
+        vkDestroyImageView(vulkanState.device, uiTextureImageView, nullptr);
+        uiTextureImage.destroy(vulkanState.allocator);
 
         world.destroy(vulkanState.allocator);
         blockInteraction.destroy(vulkanState.allocator);

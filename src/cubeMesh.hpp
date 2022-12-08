@@ -1,8 +1,9 @@
 #pragma once
 
+#include <array>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <array>
 
 const std::array<std::array<glm::vec3, 4>, 6> cubeVertices = {{
     // Forward

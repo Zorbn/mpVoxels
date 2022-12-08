@@ -44,6 +44,7 @@ add_executable(
     src/main.cpp
     src/renderTypes.hpp
     src/cubeMesh.hpp
+    src/primitiveMeshes.hpp
     src/blocks.hpp
     src/directions.hpp
     src/blockInteraction.cpp src/blockInteraction.hpp
