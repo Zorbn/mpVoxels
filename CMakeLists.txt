@@ -52,7 +52,9 @@ add_executable(
     src/world.cpp src/world.hpp
     src/chunk.cpp src/chunk.hpp
     src/player.cpp src/player.hpp
+    src/implementations.cpp
     deps/perlinNoise.hpp
+    deps/enet.h
 )
 
 target_link_libraries(

@@ -27,6 +27,7 @@ class App {
 private:
     Pipeline pipeline;
     Pipeline transparentPipeline;
+    Pipeline uiPipeline;
     RenderPass renderPass;
 
     Image textureImage;
@@ -34,6 +35,7 @@ private:
     VkSampler textureSampler;
 
     UniformBuffer<UniformBufferData> ubo;
+    UniformBuffer<UniformBufferData> uiUbo;
 
     std::vector<VkClearValue> clearValues;
 
@@ -46,6 +48,7 @@ private:
     World world;
     Player player;
     BlockInteraction blockInteraction;
+    Model<TransparentVertexData, uint32_t, InstanceData> crosshair;
 
 public:
     App() : world(chunkSize, mapSizeInChunks) {}
@@ -100,6 +103,7 @@ public:
 
         const VkExtent2D& extent = vulkanState.swapchain.getExtent();
         ubo.create(vulkanState.maxFramesInFlight, vulkanState.allocator);
+        uiUbo.create(vulkanState.maxFramesInFlight, vulkanState.allocator);
 
         renderPass.create(vulkanState.physicalDevice, vulkanState.device, vulkanState.allocator,
                           vulkanState.swapchain, true, false);
@@ -215,6 +219,50 @@ public:
         transparentPipeline.create<TransparentVertexData, InstanceData>(
             "res/transparentShader.vert.spv", "res/transparentShader.frag.spv", vulkanState.device, renderPass, true);
 
+        uiPipeline.createDescriptorSetLayout(
+            vulkanState.device, [&](std::vector<VkDescriptorSetLayoutBinding>& bindings) {
+                VkDescriptorSetLayoutBinding uboLayoutBinding{};
+                uboLayoutBinding.binding = 0;
+                uboLayoutBinding.descriptorCount = 1;
+                uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                uboLayoutBinding.pImmutableSamplers = nullptr;
+                uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+                bindings.push_back(uboLayoutBinding);
+            });
+        uiPipeline.createDescriptorPool(
+            vulkanState.maxFramesInFlight, vulkanState.device,
+            [&](std::vector<VkDescriptorPoolSize> poolSizes) {
+                poolSizes.resize(1);
+                poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                poolSizes[0].descriptorCount = static_cast<uint32_t>(vulkanState.maxFramesInFlight);
+            });
+        uiPipeline.createDescriptorSets(
+            vulkanState.maxFramesInFlight, vulkanState.device,
+            [&](std::vector<VkWriteDescriptorSet>& descriptorWrites, VkDescriptorSet descriptorSet,
+                uint32_t i) {
+                VkDescriptorBufferInfo bufferInfo{};
+                bufferInfo.buffer = uiUbo.getBuffer(i);
+                bufferInfo.offset = 0;
+                bufferInfo.range = uiUbo.getDataSize();
+
+                descriptorWrites.resize(1);
+
+                descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrites[0].dstSet = descriptorSet;
+                descriptorWrites[0].dstBinding = 0;
+                descriptorWrites[0].dstArrayElement = 0;
+                descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                descriptorWrites[0].descriptorCount = 1;
+                descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+                vkUpdateDescriptorSets(vulkanState.device,
+                                       static_cast<uint32_t>(descriptorWrites.size()),
+                                       descriptorWrites.data(), 0, nullptr);
+            });
+        uiPipeline.create<TransparentVertexData, InstanceData>(
+            "res/uiShader.vert.spv", "res/uiShader.frag.spv", vulkanState.device, renderPass, true);
+
         clearValues.resize(2);
         clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
         clearValues[1].depthStencil = {1.0f, 0};
@@ -234,6 +282,31 @@ public:
         blockInteraction.init(vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
 
         currentTime = static_cast<float>(glfwGetTime());
+
+        std::vector<TransparentVertexData> crosshairVertices;
+        std::vector<uint32_t> crosshairIndices;
+        for (int32_t face = 0; face < 6; face++) {
+            size_t vertexCount = crosshairVertices.size();
+            for (uint32_t index : cubeIndices[face]) {
+                crosshairIndices.push_back(index + static_cast<uint32_t>(vertexCount));
+            }
+
+            for (size_t i = 0; i < 4; i++) {
+                glm::vec3 vertex = cubeVertices[face][i];
+                glm::vec2 uv = cubeUvs[face][i];
+
+                crosshairVertices.push_back(TransparentVertexData {
+                    vertex,
+                    glm::vec4(1.0f, 0.0f, 0.0f, 1.0f),
+                });
+            }
+        }
+
+        crosshair = Model<TransparentVertexData, uint32_t, InstanceData>::fromVerticesAndIndices(crosshairVertices, crosshairIndices, 1,
+            vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
+        std::vector<InstanceData> crosshairInstances;
+        crosshairInstances.push_back(InstanceData{glm::vec3(0.0f, 0.0f, 0.0f)});
+        crosshair.updateInstances(crosshairInstances, vulkanState.commands, vulkanState.allocator, vulkanState.graphicsQueue, vulkanState.device);
     }
 
     void update(VulkanState& vulkanState) {
@@ -268,6 +341,11 @@ public:
 
         ubo.update(uboData);
 
+        uboData.proj = glm::ortho(640 * -0.5f, 640 * 0.5f, 480 * -0.5f, 480 * 0.5f, -10.0f, 10.0f);
+        uboData.proj[1][1] *= -1;
+
+        uiUbo.update(uboData);
+
         vulkanState.commands.beginBuffer(currentFrame);
 
         renderPass.begin(imageIndex, commandBuffer, extent, clearValues);
@@ -278,6 +356,10 @@ public:
         transparentPipeline.bind(commandBuffer, currentFrame);
 
         blockInteraction.draw(commandBuffer);
+
+        uiPipeline.bind(commandBuffer, currentFrame);
+
+        crosshair.draw(commandBuffer);
 
         renderPass.end(commandBuffer);
 
@@ -292,9 +374,11 @@ public:
     void cleanup(VulkanState& vulkanState) {
         pipeline.cleanup(vulkanState.device);
         transparentPipeline.cleanup(vulkanState.device);
+        uiPipeline.cleanup(vulkanState.device);
         renderPass.cleanup(vulkanState.allocator, vulkanState.device);
 
         ubo.destroy(vulkanState.allocator);
+        uiUbo.destroy(vulkanState.allocator);
 
         vkDestroySampler(vulkanState.device, textureSampler, nullptr);
         vkDestroyImageView(vulkanState.device, textureImageView, nullptr);
@@ -302,6 +386,7 @@ public:
 
         world.destroy(vulkanState.allocator);
         blockInteraction.destroy(vulkanState.allocator);
+        crosshair.destroy(vulkanState.allocator);
     }
 
     int run() {
