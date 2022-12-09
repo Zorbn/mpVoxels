@@ -50,9 +50,6 @@ private:
     GLFWwindow* window;
     float windowWidth, windowHeight;
     float currentTime = 0;
-    float mouseX = 0, mouseY = 0;
-
-    float mouseSensitivity = 0.1f;
 
     Frustum frustum;
     World world;
@@ -65,18 +62,10 @@ private:
 public:
     App() : world(chunkSize, mapSizeInChunks) {}
 
-    void updateMousePos(float newMouseX, float newMouseY, bool firstUpdate) {
-        float dx = 0.0f, dy = 0.0f;
-
-        if (!firstUpdate) {
-            dx = (newMouseY - mouseY) * mouseSensitivity;
-            dy = (newMouseX - mouseX) * mouseSensitivity;
-        }
-
-        mouseX = newMouseX;
-        mouseY = newMouseY;
-
-        player.updateRotation(dx, dy);
+    void updateMousePos(float newMouseX, float newMouseY) {
+        input.updateMousePos(newMouseX, newMouseY);
+        glm::vec2 delta = input.getMouseDelta();
+        player.updateRotation(delta.x, delta.y);
     }
 
     void updateKey(int32_t key, int32_t scancode, int32_t action, int32_t mods) {
@@ -96,17 +85,10 @@ public:
         if (glfwRawMouseMotionSupported())
             glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-        // First mouse update to initialize the player's rotation.
-        double initialMouseX, initialMouseY;
-        glfwGetCursorPos(window, &initialMouseX, &initialMouseY);
-        updateMousePos(static_cast<float>(initialMouseX), static_cast<float>(initialMouseY), true);
-
-        // Hook into subsequent mouse movements to update the rotation.
+        // Hook into mouse movements to update the player's rotation.
         glfwSetCursorPosCallback(window, [](GLFWwindow* window, double mouseX, double mouseY) {
             App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
-            app->updateMousePos(static_cast<float>(mouseX), static_cast<float>(mouseY), false);
+            app->updateMousePos(static_cast<float>(mouseX), static_cast<float>(mouseY));
         });
 
         // Keep track of inputs and pass them to the input manager.
@@ -119,6 +101,8 @@ public:
             App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
             app->updateMouseButton(button, action, mods);
         });
+
+        input.setMouseSensitivity(0.1f);
 
         vulkanState.swapchain.create(vulkanState.device, vulkanState.physicalDevice,
                                      vulkanState.surface, width, height);
@@ -435,7 +419,7 @@ public:
 
         blockInteraction.postUpdate(vulkanState.commands, vulkanState.allocator, vulkanState.graphicsQueue, vulkanState.device);
 
-        input.update();
+        input.update(window);
     }
 
     void render(VulkanState& vulkanState, VkCommandBuffer commandBuffer, uint32_t imageIndex,

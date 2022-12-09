@@ -11,6 +11,7 @@
 
 class Player {
 public:
+    Player();
     void updateRotation(float dx, float dy);
     glm::mat4 getViewMatrix();
     float getFov();

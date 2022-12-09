@@ -1,5 +1,9 @@
 #include "player.hpp"
 
+Player::Player() {
+    updateRotation(0.0f, 0.0f);
+}
+
 void Player::updateRotation(float dx, float dy) {
     rotationX = glm::clamp(rotationX + dx, -maxPitch, maxPitch);
     rotationY -= dy;
