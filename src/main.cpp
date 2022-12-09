@@ -19,6 +19,7 @@
 #include "player.hpp"
 #include "blockInteraction.hpp"
 #include "primitiveMeshes.hpp"
+#include "frustum.hpp"
 
 constexpr int32_t chunkSize = 32;
 constexpr int32_t mapSizeInChunks = 4;
@@ -50,6 +51,7 @@ private:
 
     float mouseSensitivity = 0.1f;
 
+    Frustum frustum;
     World world;
     Player player;
     BlockInteraction blockInteraction;
@@ -373,6 +375,10 @@ public:
 
         ubo.update(uboData);
 
+        // uboData.proj = glm::perspective(glm::radians(15.0f), extent.width / (float)extent.height, 0.1f, 128.0f);
+        // uboData.proj[1][1] *= -1;
+        frustum.calculate(uboData.proj * uboData.view);
+
         uboData.proj = glm::ortho(-windowWidth * 0.5f, windowWidth * 0.5f, -windowHeight * 0.5f, windowHeight * 0.5f, -10.0f, 10.0f);
         uboData.proj[1][1] *= -1;
 
@@ -383,7 +389,7 @@ public:
         renderPass.begin(imageIndex, commandBuffer, extent, clearValues);
         pipeline.bind(commandBuffer, currentFrame);
 
-        world.draw(commandBuffer);
+        world.draw(frustum, commandBuffer);
 
         transparentPipeline.bind(commandBuffer, currentFrame);
 

@@ -48,6 +48,7 @@ add_executable(
     src/blocks.hpp
     src/directions.hpp
     src/blockInteraction.cpp src/blockInteraction.hpp
+    src/frustum.cpp src/frustum.hpp
     src/physics.cpp src/physics.hpp
     src/gameMath.cpp src/gameMath.hpp
     src/world.cpp src/world.hpp

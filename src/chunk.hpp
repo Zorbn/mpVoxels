@@ -5,6 +5,8 @@
 #include <random>
 #include <array>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <vkFrame/renderer.hpp>
 
 #include "cubeMesh.hpp"
@@ -30,6 +32,8 @@ public:
     void updateMesh(World& world, VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device);
     void generate(World& world, std::mt19937& rng, siv::BasicPerlinNoise<float>& noise);
     void draw(VkCommandBuffer commandBuffer);
+    glm::vec3 getPos();
+    glm::vec3 getSize();
     void destroy(VmaAllocator allocator);
 
     bool firstUpdate = true;

@@ -134,9 +134,11 @@ void World::generate(std::mt19937& rng, siv::BasicPerlinNoise<float>& noise) {
     }
 }
 
-void World::draw(VkCommandBuffer commandBuffer) {
+void World::draw(Frustum& frustum, VkCommandBuffer commandBuffer) {
     for (int32_t i = 0; i < chunks.size(); i++) {
-        chunks[i].draw(commandBuffer);
+        Chunk& chunk = chunks[i];
+        if (frustum.shouldBeCulled(chunk.getPos(), chunk.getSize())) continue;
+        chunk.draw(commandBuffer);
     }
 }
 

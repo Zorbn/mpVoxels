@@ -160,6 +160,14 @@ void Chunk::draw(VkCommandBuffer commandBuffer) {
     model.draw(commandBuffer);
 }
 
+glm::vec3 Chunk::getPos() {
+    return glm::vec3(chunkX * size, chunkY * size, chunkZ * size);
+}
+
+glm::vec3 Chunk::getSize() {
+    return glm::vec3(size, size, size);
+}
+
 void Chunk::destroy(VmaAllocator allocator) {
     model.destroy(allocator);
 }
