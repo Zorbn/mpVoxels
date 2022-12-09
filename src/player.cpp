@@ -23,21 +23,20 @@ float Player::getFov() {
     return fov;
 }
 
-void Player::updateInteraction(GLFWwindow* window, World& world, BlockInteraction& blockInteraction, float deltaTime) {
-    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
+void Player::updateInteraction(Input& input, World& world, BlockInteraction& blockInteraction, float deltaTime) {
+    if (input.isButtonPressed(GLFW_MOUSE_BUTTON_LEFT)) {
         RaycastHit hit = raycast(world, viewPos, forwardDir, range);
 
         if (hit.hit) {
             blockInteraction.mineBlock(world, hit.pos.x, hit.pos.y, hit.pos.z, deltaTime);
         }
-    }
-    // } else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-    //     RaycastHit hit = raycast(world, viewPos, forwardDir, range);
+    } else if (input.wasButtonPressed(GLFW_MOUSE_BUTTON_RIGHT)) {
+        RaycastHit hit = raycast(world, viewPos, forwardDir, range);
 
-    //     if (hit.hit) {
-    //         blockInteraction.placeBlock(world, hit.lastPos.x, hit.lastPos.y, hit.lastPos.z, Blocks::Stone);
-    //     }
-    // }
+        if (hit.hit) {
+            blockInteraction.placeBlock(world, hit.lastPos.x, hit.lastPos.y, hit.lastPos.z, Blocks::Stone);
+        }
+    }
 }
 
 // Setup up a single block if there is space for the place at the target position. (The target position
@@ -58,7 +57,7 @@ bool Player::tryStepUp(World& world, glm::vec3 targetPos, glm::ivec3 hitBlock, b
     return false;
 }
 
-void Player::updateMovement(GLFWwindow* window, World& world, float deltaTime) {
+void Player::updateMovement(Input& input, World& world, float deltaTime) {
     bool isGrounded = isOnGround(world, pos, size);
 
     glm::vec2 horizontalForwardDir = glm::vec2(forwardDir.x, forwardDir.z);
@@ -75,19 +74,19 @@ void Player::updateMovement(GLFWwindow* window, World& world, float deltaTime) {
     // y is forward/backward movement, x is right/left movement.
     glm::vec2 moveDir{0.0f, 0.0f};
 
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+    if (input.isButtonPressed(GLFW_KEY_W)) {
         moveDir.y += 1.0f;
     }
 
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+    if (input.isButtonPressed(GLFW_KEY_S)) {
         moveDir.y -= 1.0f;
     }
 
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+    if (input.isButtonPressed(GLFW_KEY_D)) {
         moveDir.x -= 1.0f;
     }
 
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+    if (input.isButtonPressed(GLFW_KEY_A)) {
         moveDir.x += 1.0f;
     }
 
@@ -102,7 +101,7 @@ void Player::updateMovement(GLFWwindow* window, World& world, float deltaTime) {
 
     float modifiedSpeed = speed * deltaTime;
 
-    bool isSprinting = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS;
+    bool isSprinting = input.isButtonPressed(GLFW_KEY_LEFT_SHIFT);
 
     if (isSprinting) {
         modifiedSpeed *= sprintMultiplier;
@@ -119,7 +118,7 @@ void Player::updateMovement(GLFWwindow* window, World& world, float deltaTime) {
     yVelocity -= gravity * deltaTime;
 
     if (isGrounded) {
-        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+        if (input.isButtonPressed(GLFW_KEY_SPACE)) {
             yVelocity = jumpForce;
         } else {
             yVelocity = 0;
@@ -128,7 +127,7 @@ void Player::updateMovement(GLFWwindow* window, World& world, float deltaTime) {
 
     glm::vec3 newPos = pos;
 
-    bool noClip = glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS;
+    bool noClip = input.isButtonPressed(GLFW_KEY_N);
 
     if (!noClip) {
         newPos.x += xVelocity;

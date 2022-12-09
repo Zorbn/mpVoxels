@@ -1,7 +1,5 @@
 #include "blockInteraction.hpp"
 
-#include <iostream>
-
 constexpr float blockModelPadding = 0.0025f;
 constexpr float blockModelScale = 1.0f + blockModelPadding * 2.0f;
 

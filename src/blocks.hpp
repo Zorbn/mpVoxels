@@ -1,6 +1,6 @@
 #pragma once
 
-enum class Blocks {
+enum class Blocks : unsigned char {
     Air,
     Dirt,
     Stone,

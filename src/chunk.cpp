@@ -70,11 +70,14 @@ bool Chunk::getLit(int32_t x, int32_t y, int32_t z) {
     return lightMap[y + x * size + z * size * size];
 }
 
-void Chunk::update(World& world, VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device) {
+bool Chunk::update(World& world, VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device) {
     if (needsUpdate) {
         updateMesh(world, allocator, commands, graphicsQueue, device);
         needsUpdate = false;
+        return true;
     }
+
+    return false;
 }
 
 void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device) {
@@ -82,7 +85,7 @@ void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands,
     indices.clear();
 
     for (int32_t z = 0; z < size; z++) {
-        for (int32_t y = size - 1; y >= 0; y--) {
+        for (int32_t y = 0; y < size; y++) {
             for (int32_t x = 0; x < size; x++) {
                 int32_t worldX = x + chunkX * size;
                 int32_t worldY = y + chunkY * size;
@@ -98,14 +101,14 @@ void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands,
                                 worldZ + directions[face][2]))
                         continue;
 
+                    float lightLevel = world.getLit(worldX + directions[face][0],
+                                                    worldY + directions[face][1],
+                                                    worldZ + directions[face][2]) ? 1.0f : 0.5f;
+
                     size_t vertexCount = vertices.size();
                     for (uint32_t index : cubeIndices[face]) {
                         indices.push_back(index + static_cast<uint32_t>(vertexCount));
                     }
-
-                    float lightLevel = world.getLit(worldX + directions[face][0],
-                                                    worldY + directions[face][1],
-                                                    worldZ + directions[face][2]) ? 1.0f : 0.5f;
 
                     for (size_t i = 0; i < 4; i++) {
                         glm::vec3 vertex = cubeVertices[face][i];
@@ -139,14 +142,14 @@ void Chunk::generate(World& world, std::mt19937& rng, siv::BasicPerlinNoise<floa
             int32_t worldX = x + chunkX * size;
 
             int32_t maxHeight = floorToInt(noise.noise2D_01(worldX * hillNoiseScale, worldZ * hillNoiseScale) * hillHeight + valleyHeight);
-            if (maxHeight < 1) std::cout << maxHeight << std::endl;
-            int32_t maxY = std::min(maxHeight - chunkY * size, size);
 
-            for (int32_t y = 0; y < maxY; y++) {
+            for (int32_t y = 0; y < size; y++) {
                 int32_t worldY = y + chunkY * size;
 
                 float shadeNoiseValue = noise.noise3D_01(worldX * shadeNoiseScale, worldY * shadeNoiseScale, worldZ * shadeNoiseScale);
                 shadeNoise[x + y * size + z * size * size] = shadeNoiseValue;
+
+                if (worldY > maxHeight) continue;
 
                 if (shouldGenerateSolid(noise, worldX, worldY, worldZ)) {
                     setBlock(world, x, y, z, Blocks::Dirt);

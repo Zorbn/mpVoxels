@@ -54,6 +54,7 @@ add_executable(
     src/world.cpp src/world.hpp
     src/chunk.cpp src/chunk.hpp
     src/player.cpp src/player.hpp
+    src/input.cpp src/input.hpp
     src/implementations.cpp
     deps/perlinNoise.hpp
     deps/enet.h

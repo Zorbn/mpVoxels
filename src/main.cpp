@@ -7,7 +7,7 @@
 
 #include <vkFrame/renderer.hpp>
 
-#include "GLFW/glfw3.h"
+#include <GLFW/glfw3.h>
 
 #include "../deps/perlinNoise.hpp"
 
@@ -20,6 +20,7 @@
 #include "blockInteraction.hpp"
 #include "primitiveMeshes.hpp"
 #include "frustum.hpp"
+#include "input.hpp"
 
 constexpr int32_t chunkSize = 32;
 constexpr int32_t mapSizeInChunks = 4;
@@ -59,6 +60,8 @@ private:
     BlockInteraction blockInteraction;
     Model<VertexData, uint16_t, InstanceData> crosshair;
 
+    Input input;
+
 public:
     App() : world(chunkSize, mapSizeInChunks) {}
 
@@ -74,6 +77,14 @@ public:
         mouseY = newMouseY;
 
         player.updateRotation(dx, dy);
+    }
+
+    void updateKey(int32_t key, int32_t scancode, int32_t action, int32_t mods) {
+        input.updateButton(key, action, mods);
+    }
+
+    void updateMouseButton(int32_t button, int32_t action, int32_t mods) {
+        input.updateButton(button, action, mods);
     }
 
     void init(VulkanState& vulkanState, GLFWwindow* window, int32_t width, int32_t height) {
@@ -96,6 +107,17 @@ public:
         glfwSetCursorPosCallback(window, [](GLFWwindow* window, double mouseX, double mouseY) {
             App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
             app->updateMousePos(static_cast<float>(mouseX), static_cast<float>(mouseY), false);
+        });
+
+        // Keep track of inputs and pass them to the input manager.
+        glfwSetKeyCallback(window, [](GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods) {
+            App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+            app->updateKey(key, scancode, action, mods);
+        });
+
+        glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int32_t button, int32_t action, int32_t mods) {
+            App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+            app->updateMouseButton(button, action, mods);
         });
 
         vulkanState.swapchain.create(vulkanState.device, vulkanState.physicalDevice,
@@ -408,10 +430,12 @@ public:
 
         world.update(vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
 
-        player.updateMovement(window, world, deltaTime);
-        player.updateInteraction(window, world, blockInteraction, deltaTime);
+        player.updateMovement(input, world, deltaTime);
+        player.updateInteraction(input, world, blockInteraction, deltaTime);
 
         blockInteraction.postUpdate(vulkanState.commands, vulkanState.allocator, vulkanState.graphicsQueue, vulkanState.device);
+
+        input.update();
     }
 
     void render(VulkanState& vulkanState, VkCommandBuffer commandBuffer, uint32_t imageIndex,
@@ -421,7 +445,7 @@ public:
         UniformBufferData uboData{};
         uboData.model = glm::mat4(1.0f);
         uboData.view = player.getViewMatrix();
-        uboData.proj = glm::perspective(glm::radians(player.getFov()), extent.width / (float)extent.height, 0.1f, 128.0f);
+        uboData.proj = glm::perspective(glm::radians(player.getFov()), extent.width / (float)extent.height, 0.1f, fogMaxDistance);
         uboData.proj[1][1] *= -1;
 
         ubo.update(uboData);

@@ -1,12 +1,13 @@
 #pragma once
 
-#include "GLFW/glfw3.h"
+#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "world.hpp"
 #include "physics.hpp"
 #include "blockInteraction.hpp"
+#include "input.hpp"
 
 class Player {
 public:
@@ -14,8 +15,8 @@ public:
     glm::mat4 getViewMatrix();
     float getFov();
     bool tryStepUp(World& world, glm::vec3 targetPos, glm::ivec3 hitBlock, bool isGrounded);
-    void updateMovement(GLFWwindow* window, World& world, float deltaTime);
-    void updateInteraction(GLFWwindow* window, World& world, BlockInteraction& blockInteraction, float deltaTime);
+    void updateMovement(Input& input, World& world, float deltaTime);
+    void updateInteraction(Input& input, World& world, BlockInteraction& blockInteraction, float deltaTime);
     void increaseViewInterp();
     void updateView(float deltaTime);
     void updateViewPos();
