@@ -153,3 +153,9 @@ void World::update(VmaAllocator allocator, Commands& commands, VkQueue graphicsQ
         chunks[i].update(*this, allocator, commands, graphicsQueue, device);
     }
 }
+
+void World::upload(VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device) {
+    for (int32_t i = 0; i < chunks.size(); i++) {
+        chunks[i].upload(allocator, commands, graphicsQueue, device);
+    }
+}

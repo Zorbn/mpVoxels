@@ -1,4 +1,5 @@
 #include <random>
+#include <thread>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -58,6 +59,9 @@ private:
     Model<VertexData, uint16_t, InstanceData> crosshair;
 
     Input input;
+
+    bool updateWorld = true;
+    std::thread worldUpdateThread;
 
 public:
     App() : world(chunkSize, mapSizeInChunks) {}
@@ -398,6 +402,12 @@ public:
         crosshair.updateInstances(crosshairInstances, vulkanState.commands, vulkanState.allocator, vulkanState.graphicsQueue, vulkanState.device);
 
         fogUbo.update(FogUniformData{glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), fogMaxDistance});
+
+        worldUpdateThread = std::thread([&]() {
+            while (updateWorld) {
+                world.update(vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
+            }
+        });
     }
 
     void update(VulkanState& vulkanState) {
@@ -412,7 +422,8 @@ public:
 
         blockInteraction.preUpdate();
 
-        world.update(vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
+        // world.update(vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
+        world.upload(vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
 
         player.updateMovement(input, world, deltaTime);
         player.updateInteraction(input, world, blockInteraction, deltaTime);
@@ -470,6 +481,9 @@ public:
     }
 
     void cleanup(VulkanState& vulkanState) {
+        updateWorld = false;
+        worldUpdateThread.join();
+
         pipeline.cleanup(vulkanState.device);
         transparentPipeline.cleanup(vulkanState.device);
         uiPipeline.cleanup(vulkanState.device);

@@ -24,6 +24,7 @@ public:
     void draw(Frustum& frustum, VkCommandBuffer commandBuffer);
     void destroy(VmaAllocator allocator);
     void update(VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device);
+    void upload(VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device);
 
 private:
     int32_t chunkSize;

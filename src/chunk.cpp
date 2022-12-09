@@ -80,6 +80,16 @@ bool Chunk::update(World& world, VmaAllocator allocator, Commands& commands, VkQ
     return false;
 }
 
+bool Chunk::upload(VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device) {
+    if (needsUpload) {
+        uploadMesh(allocator, commands, graphicsQueue, device);
+        needsUpload = false;
+        return true;
+    }
+
+    return false;
+}
+
 void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device) {
     vertices.clear();
     indices.clear();
@@ -125,11 +135,16 @@ void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands,
         }
     }
 
+    needsUpload = true;
+}
+
+void Chunk::uploadMesh(VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device) {
     if (firstUpdate) {
         model = Model<VertexData, uint32_t, InstanceData>::fromVerticesAndIndices(vertices, indices, 1, allocator, commands, graphicsQueue, device);
         model.updateInstances(instances, commands, allocator, graphicsQueue, device);
         firstUpdate = false;
-    } else {
+    }
+    else {
         model.update(vertices, indices, commands, allocator, graphicsQueue, device);
     }
 }

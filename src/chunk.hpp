@@ -29,7 +29,9 @@ public:
     void setLit(int32_t x, int32_t y, int32_t z, bool lit);
     bool getLit(int32_t x, int32_t y, int32_t z);
     bool update(World& world, VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device);
+    bool upload(VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device);
     void updateMesh(World& world, VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device);
+    void uploadMesh(VmaAllocator allocator, Commands& commands, VkQueue graphicsQueue, VkDevice device);
     void generate(World& world, std::mt19937& rng, siv::BasicPerlinNoise<float>& noise);
     void draw(VkCommandBuffer commandBuffer);
     glm::vec3 getPos();
@@ -38,6 +40,7 @@ public:
 
     bool firstUpdate = true;
     bool needsUpdate = true;
+    bool needsUpload = false;
 
 private:
     bool shouldGenerateSolid(siv::BasicPerlinNoise<float>& noise, int32_t worldX, int32_t worldY, int32_t worldZ);
