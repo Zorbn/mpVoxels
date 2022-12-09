@@ -24,6 +24,7 @@
 constexpr int32_t chunkSize = 32;
 constexpr int32_t mapSizeInChunks = 4;
 constexpr int32_t chunkCount = mapSizeInChunks * mapSizeInChunks * mapSizeInChunks;
+constexpr float fogMaxDistance = 64.0f;
 
 class App {
 private:
@@ -41,6 +42,7 @@ private:
 
     UniformBuffer<UniformBufferData> ubo;
     UniformBuffer<UniformBufferData> uiUbo;
+    UniformBuffer<FogUniformData> fogUbo;
 
     std::vector<VkClearValue> clearValues;
 
@@ -120,6 +122,7 @@ public:
         const VkExtent2D& extent = vulkanState.swapchain.getExtent();
         ubo.create(vulkanState.maxFramesInFlight, vulkanState.allocator);
         uiUbo.create(vulkanState.maxFramesInFlight, vulkanState.allocator);
+        fogUbo.create(vulkanState.maxFramesInFlight, vulkanState.allocator);
 
         renderPass.create(vulkanState.physicalDevice, vulkanState.device, vulkanState.allocator,
                           vulkanState.swapchain, true, false);
@@ -140,17 +143,27 @@ public:
                 samplerLayoutBinding.pImmutableSamplers = nullptr;
                 samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
+                VkDescriptorSetLayoutBinding fogLayoutBinding{};
+                fogLayoutBinding.binding = 2;
+                fogLayoutBinding.descriptorCount = 1;
+                fogLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                fogLayoutBinding.pImmutableSamplers = nullptr;
+                fogLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
                 bindings.push_back(uboLayoutBinding);
                 bindings.push_back(samplerLayoutBinding);
+                bindings.push_back(fogLayoutBinding);
             });
         pipeline.createDescriptorPool(
             vulkanState.maxFramesInFlight, vulkanState.device,
             [&](std::vector<VkDescriptorPoolSize> poolSizes) {
-                poolSizes.resize(2);
+                poolSizes.resize(3);
                 poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                 poolSizes[0].descriptorCount = static_cast<uint32_t>(vulkanState.maxFramesInFlight);
                 poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 poolSizes[1].descriptorCount = static_cast<uint32_t>(vulkanState.maxFramesInFlight);
+                poolSizes[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                poolSizes[2].descriptorCount = static_cast<uint32_t>(vulkanState.maxFramesInFlight);
             });
         pipeline.createDescriptorSets(
             vulkanState.maxFramesInFlight, vulkanState.device,
@@ -166,7 +179,12 @@ public:
                 imageInfo.imageView = textureImageView;
                 imageInfo.sampler = textureSampler;
 
-                descriptorWrites.resize(2);
+                VkDescriptorBufferInfo fogInfo{};
+                fogInfo.buffer = fogUbo.getBuffer(i);
+                fogInfo.offset = 0;
+                fogInfo.range = fogUbo.getDataSize();
+
+                descriptorWrites.resize(3);
 
                 descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                 descriptorWrites[0].dstSet = descriptorSet;
@@ -184,6 +202,14 @@ public:
                 descriptorWrites[1].descriptorCount = 1;
                 descriptorWrites[1].pImageInfo = &imageInfo;
 
+                descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrites[2].dstSet = descriptorSet;
+                descriptorWrites[2].dstBinding = 2;
+                descriptorWrites[2].dstArrayElement = 0;
+                descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                descriptorWrites[2].descriptorCount = 1;
+                descriptorWrites[2].pBufferInfo = &fogInfo;
+
                 vkUpdateDescriptorSets(vulkanState.device,
                                        static_cast<uint32_t>(descriptorWrites.size()),
                                        descriptorWrites.data(), 0, nullptr);
@@ -200,14 +226,24 @@ public:
                 uboLayoutBinding.pImmutableSamplers = nullptr;
                 uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
+                VkDescriptorSetLayoutBinding fogLayoutBinding{};
+                fogLayoutBinding.binding = 1;
+                fogLayoutBinding.descriptorCount = 1;
+                fogLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                fogLayoutBinding.pImmutableSamplers = nullptr;
+                fogLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
                 bindings.push_back(uboLayoutBinding);
+                bindings.push_back(fogLayoutBinding);
             });
         transparentPipeline.createDescriptorPool(
             vulkanState.maxFramesInFlight, vulkanState.device,
             [&](std::vector<VkDescriptorPoolSize> poolSizes) {
-                poolSizes.resize(1);
+                poolSizes.resize(2);
                 poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                 poolSizes[0].descriptorCount = static_cast<uint32_t>(vulkanState.maxFramesInFlight);
+                poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                poolSizes[1].descriptorCount = static_cast<uint32_t>(vulkanState.maxFramesInFlight);
             });
         transparentPipeline.createDescriptorSets(
             vulkanState.maxFramesInFlight, vulkanState.device,
@@ -218,7 +254,12 @@ public:
                 bufferInfo.offset = 0;
                 bufferInfo.range = ubo.getDataSize();
 
-                descriptorWrites.resize(1);
+                VkDescriptorBufferInfo fogInfo{};
+                fogInfo.buffer = fogUbo.getBuffer(i);
+                fogInfo.offset = 0;
+                fogInfo.range = fogUbo.getDataSize();
+
+                descriptorWrites.resize(2);
 
                 descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                 descriptorWrites[0].dstSet = descriptorSet;
@@ -227,6 +268,14 @@ public:
                 descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                 descriptorWrites[0].descriptorCount = 1;
                 descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+                descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrites[1].dstSet = descriptorSet;
+                descriptorWrites[1].dstBinding = 1;
+                descriptorWrites[1].dstArrayElement = 0;
+                descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                descriptorWrites[1].descriptorCount = 1;
+                descriptorWrites[1].pBufferInfo = &fogInfo;
 
                 vkUpdateDescriptorSets(vulkanState.device,
                                        static_cast<uint32_t>(descriptorWrites.size()),
@@ -341,6 +390,8 @@ public:
         std::vector<InstanceData> crosshairInstances;
         crosshairInstances.push_back(InstanceData{glm::vec3(0.0f)});
         crosshair.updateInstances(crosshairInstances, vulkanState.commands, vulkanState.allocator, vulkanState.graphicsQueue, vulkanState.device);
+
+        fogUbo.update(FogUniformData{glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), fogMaxDistance});
     }
 
     void update(VulkanState& vulkanState) {
@@ -375,8 +426,6 @@ public:
 
         ubo.update(uboData);
 
-        // uboData.proj = glm::perspective(glm::radians(15.0f), extent.width / (float)extent.height, 0.1f, 128.0f);
-        // uboData.proj[1][1] *= -1;
         frustum.calculate(uboData.proj * uboData.view);
 
         uboData.proj = glm::ortho(-windowWidth * 0.5f, windowWidth * 0.5f, -windowHeight * 0.5f, windowHeight * 0.5f, -10.0f, 10.0f);
@@ -420,6 +469,7 @@ public:
 
         ubo.destroy(vulkanState.allocator);
         uiUbo.destroy(vulkanState.allocator);
+        fogUbo.destroy(vulkanState.allocator);
 
         vkDestroySampler(vulkanState.device, textureSampler, nullptr);
         vkDestroyImageView(vulkanState.device, textureImageView, nullptr);
