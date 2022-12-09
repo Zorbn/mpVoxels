@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include <cinttypes>
 #include <unordered_map>
 #include <utility>

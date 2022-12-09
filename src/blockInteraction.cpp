@@ -59,7 +59,7 @@ void BlockInteraction::postUpdate(Commands& commands, VmaAllocator allocator, Vk
     vertices.clear();
     indices.clear();
 
-    for (auto& it = breakingBlocks.cbegin(); it != breakingBlocks.cend();) {
+    for (auto it = breakingBlocks.cbegin(); it != breakingBlocks.cend();) {
         if (!it->second.updatedThisFrame) {
             breakingBlocks.erase(it++);
             continue;

@@ -11,7 +11,7 @@
 class Player {
 public:
     void updateRotation(float dx, float dy);
-    glm::mat4 Player::getViewMatrix();
+    glm::mat4 getViewMatrix();
     float getFov();
     bool tryStepUp(World& world, glm::vec3 targetPos, glm::ivec3 hitBlock, bool isGrounded);
     void updateMovement(GLFWwindow* window, World& world, float deltaTime);
