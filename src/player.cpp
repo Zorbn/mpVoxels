@@ -61,6 +61,25 @@ bool Player::tryStepUp(World& world, glm::vec3 targetPos, glm::ivec3 hitBlock, b
     return false;
 }
 
+bool Player::canStep(World& world, glm::vec3 newPos, int32_t axis, bool isCrouching, bool isGrounded) {
+    glm::vec3 axisNewPos = pos;
+    axisNewPos[axis] = newPos[axis];
+    bool snagLedge = isCrouching && isGrounded && !isOnGround(world, axisNewPos, size);
+    if (snagLedge) {
+        return false;
+    } else {
+        auto collision = getBlockCollision(world, axisNewPos, size);
+        if (collision.has_value()) {
+            glm::ivec3 hitBlock = collision.value();
+            if (!tryStepUp(world, newPos, hitBlock, isGrounded)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 void Player::updateMovement(Input& input, World& world, float deltaTime) {
     bool isGrounded = isOnGround(world, pos, size);
 
@@ -106,6 +125,7 @@ void Player::updateMovement(Input& input, World& world, float deltaTime) {
     float modifiedSpeed = speed * deltaTime;
 
     bool isSprinting = input.isButtonPressed(GLFW_KEY_LEFT_SHIFT);
+    bool isCrouching = input.isButtonPressed(GLFW_KEY_C);
 
     if (isSprinting) {
         modifiedSpeed *= sprintMultiplier;
@@ -136,22 +156,14 @@ void Player::updateMovement(Input& input, World& world, float deltaTime) {
     if (!noClip) {
         newPos.x += xVelocity;
 
-        auto collision = getBlockCollision(world, glm::vec3{newPos.x, pos.y, pos.z}, size);
-        if (collision.has_value()) {
-            glm::ivec3 hitBlock = collision.value();
-            if (!tryStepUp(world, newPos, hitBlock, isGrounded)) {
-                newPos.x = pos.x;
-            }
+        if (!canStep(world, newPos, 0, isCrouching, isGrounded)) {
+            newPos.x = pos.x;
         }
 
         newPos.z += zVelocity;
 
-        collision = getBlockCollision(world, glm::vec3{pos.x, pos.y, newPos.z}, size);
-        if (isCollidingWithBlock(world, glm::vec3{pos.x, pos.y, newPos.z}, size)) {
-            glm::ivec3 hitBlock = collision.value();
-            if (!tryStepUp(world, newPos, hitBlock, isGrounded)) {
-                newPos.z = pos.z;
-            }
+        if (!canStep(world, newPos, 2, isCrouching, isGrounded)) {
+            newPos.z = pos.z;
         }
 
         newPos.y = pos.y + yVelocity * deltaTime;

@@ -27,6 +27,7 @@ constexpr int32_t chunkSize = 32;
 constexpr int32_t mapSizeInChunks = 4;
 constexpr int32_t chunkCount = mapSizeInChunks * mapSizeInChunks * mapSizeInChunks;
 constexpr float fogMaxDistance = 64.0f;
+constexpr float mouseSensitivity = 0.1f;
 
 class App {
 private:
@@ -106,7 +107,7 @@ public:
             app->updateMouseButton(button, action, mods);
         });
 
-        input.setMouseSensitivity(0.1f);
+        input.setMouseSensitivity(mouseSensitivity);
 
         vulkanState.swapchain.create(vulkanState.device, vulkanState.physicalDevice,
                                      vulkanState.surface, width, height);
@@ -422,7 +423,6 @@ public:
 
         blockInteraction.preUpdate();
 
-        // world.update(vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
         world.upload(vulkanState.allocator, vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
 
         player.updateMovement(input, world, deltaTime);

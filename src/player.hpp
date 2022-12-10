@@ -16,6 +16,7 @@ public:
     glm::mat4 getViewMatrix();
     float getFov();
     bool tryStepUp(World& world, glm::vec3 targetPos, glm::ivec3 hitBlock, bool isGrounded);
+    bool canStep(World& world, glm::vec3 newPos, int32_t axis, bool isCrouching, bool isGrounded);
     void updateMovement(Input& input, World& world, float deltaTime);
     void updateInteraction(Input& input, World& world, BlockInteraction& blockInteraction, float deltaTime);
     void increaseViewInterp();
