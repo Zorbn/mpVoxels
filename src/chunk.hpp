@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <cinttypes>
 #include <vector>
 #include <random>
@@ -14,6 +15,7 @@
 #include "renderTypes.hpp"
 #include "directions.hpp"
 #include "gameMath.hpp"
+#include "vertexNeighbors.hpp"
 #include "../deps/perlinNoise.hpp"
 
 class World;
@@ -37,6 +39,9 @@ public:
     glm::vec3 getPos();
     glm::vec3 getSize();
     void destroy(VmaAllocator allocator);
+    int32_t calculateAoLevel(VertexNeighbors neighbors);
+    VertexNeighbors checkVertexNeighbors(World& world, glm::ivec3 worldPos, glm::ivec3 vertexPos, int32_t direction);
+    void orientLastFace();
 
     bool firstUpdate = true;
     bool needsUpdate = true;
@@ -54,6 +59,7 @@ private:
 
     std::vector<VertexData> vertices;
     std::vector<uint32_t> indices;
+    std::array<int32_t, 4> aoBuffer;
 
     std::vector<InstanceData> instances;
     Model<VertexData, uint32_t, InstanceData> model;

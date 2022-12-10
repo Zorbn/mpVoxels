@@ -47,6 +47,7 @@ add_executable(
     src/primitiveMeshes.hpp
     src/blocks.hpp
     src/directions.hpp
+    src/vertexNeighbors.hpp
     src/blockInteraction.cpp src/blockInteraction.hpp
     src/frustum.cpp src/frustum.hpp
     src/physics.cpp src/physics.hpp

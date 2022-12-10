@@ -122,11 +122,18 @@ void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands,
 
                     for (size_t i = 0; i < 4; i++) {
                         glm::vec3 vertex = cubeVertices[face][i];
+
+                        VertexNeighbors neighbors = checkVertexNeighbors(world, glm::ivec3(worldX, worldY, worldZ), glm::ivec3(vertex), face);
+                        int32_t ao = calculateAoLevel(neighbors);
+                        aoBuffer[i] = ao;
+                        float aoLightValue = ao * 0.33f;
+
+                        glm::vec3 color = (cubeFaceColors[face] * 0.3f + noiseValue * 0.3f + aoLightValue * 0.4f) * lightLevel;
                         glm::vec2 uv = cubeUvs[face][i];
 
                         vertices.push_back(VertexData {
                             vertex + glm::vec3(x, y, z),
-                            (cubeFaceColors[face] * 0.6f + noiseValue * 0.4f) * lightLevel,
+                            color,
                             glm::vec3(uv.x, uv.y, static_cast<float>(block) - 1),
                         });
                     }
@@ -193,4 +200,52 @@ void Chunk::destroy(VmaAllocator allocator) {
 bool Chunk::shouldGenerateSolid(siv::BasicPerlinNoise<float>& noise, int32_t worldX, int32_t worldY, int32_t worldZ) {
     float noiseValue = noise.noise3D_01(worldX * caveNoiseScale, worldY * caveNoiseScale, worldZ * caveNoiseScale);
     return noiseValue < caveNoiseSolidThreshold;
+}
+
+int32_t Chunk::calculateAoLevel(VertexNeighbors neighbors) {
+    if (neighbors.side1 && neighbors.side2) return 0;
+
+    int32_t occupied = 0;
+
+    if (neighbors.side1) occupied++;
+    if (neighbors.side2) occupied++;
+    if (neighbors.corner) occupied++;
+
+    return 3 - occupied;
+}
+
+VertexNeighbors Chunk::checkVertexNeighbors(World& world, glm::ivec3 worldPos, glm::ivec3 vertexPos, int32_t direction) {
+    glm::ivec3 dir = vertexPos * 2 - 1;
+
+    int32_t outwardComponent = directionsOutwardComponent[direction];
+    glm::ivec3 dirSide1 = dir;
+    dirSide1[(outwardComponent + 2) % 3] = 0;
+    glm::ivec3 dirSide2 = dir;
+    dirSide2[(outwardComponent + 1) % 3] = 0;
+
+    glm::ivec3 side1Pos = worldPos + dirSide1;
+    glm::ivec3 side2Pos = worldPos + dirSide2;
+    glm::ivec3 cornerPos = worldPos + dir;
+
+    return VertexNeighbors{
+        world.isBlockOccupied(side1Pos.x, side1Pos.y, side1Pos.z),
+        world.isBlockOccupied(side2Pos.x, side2Pos.y, side2Pos.z),
+        world.isBlockOccupied(cornerPos.x, cornerPos.y, cornerPos.z)
+    };
+}
+
+// Ensure that color interpolation will be correct for the most recent face.
+void Chunk::orientLastFace() {
+    size_t faceStart = vertices.size() - 4;
+    VertexData v0 = vertices[faceStart];
+    VertexData v1 = vertices[faceStart + 1];
+    VertexData v2 = vertices[faceStart + 2];
+    VertexData v3 = vertices[faceStart + 3];
+
+    if (aoBuffer[0] + aoBuffer[2] > aoBuffer[1] + aoBuffer[3]) return;
+
+    vertices[faceStart] = v3;
+    vertices[faceStart + 1] = v0;
+    vertices[faceStart + 2] = v1;
+    vertices[faceStart + 3] = v2;
 }
