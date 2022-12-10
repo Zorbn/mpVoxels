@@ -127,11 +127,13 @@ void Player::updateMovement(Input& input, World& world, float deltaTime) {
     bool isSprinting = input.isButtonPressed(GLFW_KEY_LEFT_SHIFT);
     bool isCrouching = input.isButtonPressed(GLFW_KEY_C);
 
-    if (isSprinting) {
+    targetFov = defaultFov;
+
+    if (isCrouching) {
+        modifiedSpeed *= crouchMultiplier;
+    } else if (isSprinting) {
         modifiedSpeed *= sprintMultiplier;
         targetFov = defaultFov * fovSprintMultiplier;
-    } else {
-        targetFov = defaultFov;
     }
 
     float xVelocity = moveDir.y * horizontalForwardDir.x * modifiedSpeed +

@@ -113,7 +113,7 @@ void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands,
 
                     float lightLevel = world.getLit(worldX + directions[face][0],
                                                     worldY + directions[face][1],
-                                                    worldZ + directions[face][2]) ? 1.0f : 0.5f;
+                                                    worldZ + directions[face][2]) ? 1.0f : 0.7f;
 
                     size_t vertexCount = vertices.size();
                     for (uint32_t index : cubeIndices[face]) {

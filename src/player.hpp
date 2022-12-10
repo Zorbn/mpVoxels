@@ -27,6 +27,7 @@ public:
 private:
     float speed = 5.0f;
     float sprintMultiplier = 1.4f;
+    float crouchMultiplier = 0.5f;
     float jumpForce = 9.0f;
     float yVelocity = 0.0f;
 
