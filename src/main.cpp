@@ -11,6 +11,7 @@
 #include <GLFW/glfw3.h>
 
 #include "../deps/perlinNoise.hpp"
+#include "../deps/tiny_obj_loader.h"
 
 #include "renderTypes.hpp"
 #include "cubeMesh.hpp"
@@ -34,11 +35,15 @@ private:
     Pipeline pipeline;
     Pipeline transparentPipeline;
     Pipeline uiPipeline;
+    Pipeline modelPipeline; // TODO: Make an easy way to create simple VertexData/PerspectiveUbo pipelines
     RenderPass renderPass;
 
     Image textureImage;
     VkImageView textureImageView;
     VkSampler textureSampler;
+    Image modelTextureImage;
+    VkImageView modelTextureImageView;
+    VkSampler modelTextureSampler;
     Image uiTextureImage;
     VkImageView uiTextureImageView;
     VkSampler uiTextureSampler;
@@ -58,6 +63,7 @@ private:
     Player player;
     BlockInteraction blockInteraction;
     Model<VertexData, uint16_t, InstanceData> crosshair;
+    Model<VertexData, uint32_t, InstanceData> model;
 
     Input input;
 
@@ -66,6 +72,67 @@ private:
 
 public:
     App() : world(chunkSize, mapSizeInChunks) {}
+
+    void loadObjData(const std::string& path, const std::string& file, std::vector<VertexData>& vertices,
+        std::vector<uint32_t>& indices, std::vector<std::string>& textures) {
+
+        tinyobj::ObjReaderConfig readerConfig;
+        readerConfig.mtl_search_path = path;
+        tinyobj::ObjReader reader;
+
+        if (!reader.ParseFromFile(path + file, readerConfig)) {
+            if (!reader.Error().empty()) {
+                throw std::runtime_error(reader.Error());
+            }
+
+            throw std::runtime_error("Failed to load mtl/obj file!");
+        }
+
+        if (!reader.Warning().empty()) {
+            std::cout << "TinyObjReader: " << reader.Warning();
+        }
+
+        auto& attrib = reader.GetAttrib();
+        auto& shapes = reader.GetShapes();
+        auto& materials = reader.GetMaterials();
+
+        for (size_t s = 0; s < shapes.size(); s++) {
+            size_t indexOff = 0;
+            
+            for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+                size_t faceVerts = static_cast<size_t>(shapes[s].mesh.num_face_vertices[f]);
+
+                for (size_t v = 0; v < faceVerts; v++) {
+                    tinyobj::index_t idx = shapes[s].mesh.indices[indexOff + v];
+                    tinyobj::real_t vx = attrib.vertices[3 * static_cast<size_t>(idx.vertex_index) + 0];
+                    tinyobj::real_t vy = attrib.vertices[3 * static_cast<size_t>(idx.vertex_index) + 1];
+                    tinyobj::real_t vz = attrib.vertices[3 * static_cast<size_t>(idx.vertex_index) + 2];
+
+                    tinyobj::real_t tx = 0.0f;
+                    tinyobj::real_t ty = 0.0f;
+
+                    if (idx.texcoord_index >= 0) {
+                        tx = attrib.texcoords[2 * static_cast<size_t>(idx.texcoord_index) + 0];
+                        ty = attrib.texcoords[2 * static_cast<size_t>(idx.texcoord_index) + 1];
+                    }
+
+                    indices.push_back(vertices.size());
+
+                    vertices.push_back(VertexData{
+                        glm::vec3(vx, vy, vz),
+                        glm::vec3(1.0f),
+                        glm::vec3(tx, -ty, 0.0f),
+                    });
+                }
+
+                indexOff += faceVerts;
+            }
+        }
+
+        for (const auto& material : materials) {
+            textures.push_back(path + material.diffuse_texname);
+        }
+    }
 
     void updateMousePos(float newMouseX, float newMouseY) {
         input.updateMousePos(newMouseX, newMouseY);
@@ -227,6 +294,113 @@ public:
             });
         pipeline.create<VertexData, InstanceData>(
             "res/cubesShader.vert.spv", "res/cubesShader.frag.spv", vulkanState.device, renderPass, false);
+
+        std::vector<VertexData> modelVertices;
+        std::vector<uint32_t> modelIndices;
+        std::vector<std::string> modelTextures;
+        loadObjData("res/testModel/", "testModel.obj", modelVertices, modelIndices, modelTextures);
+        model = Model<VertexData, uint32_t, InstanceData>::fromVerticesAndIndices(modelVertices, modelIndices, 1, vulkanState.allocator,
+            vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
+        std::vector<InstanceData> modelInstances;
+        modelInstances.push_back(InstanceData{glm::vec3(80.0f)});
+        model.updateInstances(modelInstances, vulkanState.commands, vulkanState.allocator, vulkanState.graphicsQueue, vulkanState.device);
+
+        modelTextureImage = Image::createTexture(modelTextures[0], vulkanState.allocator,
+                                                 vulkanState.commands, vulkanState.graphicsQueue,
+                                                 vulkanState.device, false);
+        modelTextureImageView = modelTextureImage.createTextureView(vulkanState.device);
+        modelTextureSampler = modelTextureImage.createTextureSampler(
+            vulkanState.physicalDevice, vulkanState.device, VK_FILTER_NEAREST, VK_FILTER_NEAREST);
+
+        modelPipeline.createDescriptorSetLayout(
+            vulkanState.device, [&](std::vector<VkDescriptorSetLayoutBinding>& bindings) {
+                VkDescriptorSetLayoutBinding uboLayoutBinding{};
+                uboLayoutBinding.binding = 0;
+                uboLayoutBinding.descriptorCount = 1;
+                uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                uboLayoutBinding.pImmutableSamplers = nullptr;
+                uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+                VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+                samplerLayoutBinding.binding = 1;
+                samplerLayoutBinding.descriptorCount = 1;
+                samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                samplerLayoutBinding.pImmutableSamplers = nullptr;
+                samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+                VkDescriptorSetLayoutBinding fogLayoutBinding{};
+                fogLayoutBinding.binding = 2;
+                fogLayoutBinding.descriptorCount = 1;
+                fogLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                fogLayoutBinding.pImmutableSamplers = nullptr;
+                fogLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+                bindings.push_back(uboLayoutBinding);
+                bindings.push_back(samplerLayoutBinding);
+                bindings.push_back(fogLayoutBinding);
+            });
+        modelPipeline.createDescriptorPool(
+            vulkanState.maxFramesInFlight, vulkanState.device,
+            [&](std::vector<VkDescriptorPoolSize> poolSizes) {
+                poolSizes.resize(3);
+                poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                poolSizes[0].descriptorCount = static_cast<uint32_t>(vulkanState.maxFramesInFlight);
+                poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                poolSizes[1].descriptorCount = static_cast<uint32_t>(vulkanState.maxFramesInFlight);
+                poolSizes[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                poolSizes[2].descriptorCount = static_cast<uint32_t>(vulkanState.maxFramesInFlight);
+            });
+        modelPipeline.createDescriptorSets(
+            vulkanState.maxFramesInFlight, vulkanState.device,
+            [&](std::vector<VkWriteDescriptorSet>& descriptorWrites, VkDescriptorSet descriptorSet,
+                uint32_t i) {
+                VkDescriptorBufferInfo bufferInfo{};
+                bufferInfo.buffer = ubo.getBuffer(i);
+                bufferInfo.offset = 0;
+                bufferInfo.range = ubo.getDataSize();
+
+                VkDescriptorImageInfo imageInfo{};
+                imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                imageInfo.imageView = modelTextureImageView;
+                imageInfo.sampler = modelTextureSampler;
+
+                VkDescriptorBufferInfo fogInfo{};
+                fogInfo.buffer = fogUbo.getBuffer(i);
+                fogInfo.offset = 0;
+                fogInfo.range = fogUbo.getDataSize();
+
+                descriptorWrites.resize(3);
+
+                descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrites[0].dstSet = descriptorSet;
+                descriptorWrites[0].dstBinding = 0;
+                descriptorWrites[0].dstArrayElement = 0;
+                descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                descriptorWrites[0].descriptorCount = 1;
+                descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+                descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrites[1].dstSet = descriptorSet;
+                descriptorWrites[1].dstBinding = 1;
+                descriptorWrites[1].dstArrayElement = 0;
+                descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                descriptorWrites[1].descriptorCount = 1;
+                descriptorWrites[1].pImageInfo = &imageInfo;
+
+                descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrites[2].dstSet = descriptorSet;
+                descriptorWrites[2].dstBinding = 2;
+                descriptorWrites[2].dstArrayElement = 0;
+                descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                descriptorWrites[2].descriptorCount = 1;
+                descriptorWrites[2].pBufferInfo = &fogInfo;
+
+                vkUpdateDescriptorSets(vulkanState.device,
+                                       static_cast<uint32_t>(descriptorWrites.size()),
+                                       descriptorWrites.data(), 0, nullptr);
+            });
+        modelPipeline.create<VertexData, InstanceData>(
+            "res/modelShader.vert.spv", "res/modelShader.frag.spv", vulkanState.device, renderPass, false);
 
         transparentPipeline.createDescriptorSetLayout(
             vulkanState.device, [&](std::vector<VkDescriptorSetLayoutBinding>& bindings) {
@@ -456,15 +630,15 @@ public:
 
         renderPass.begin(imageIndex, commandBuffer, extent, clearValues);
         pipeline.bind(commandBuffer, currentFrame);
-
         world.draw(frustum, commandBuffer);
 
         transparentPipeline.bind(commandBuffer, currentFrame);
-
         blockInteraction.draw(commandBuffer);
 
-        uiPipeline.bind(commandBuffer, currentFrame);
+        modelPipeline.bind(commandBuffer, currentFrame);
+        model.draw(commandBuffer);
 
+        uiPipeline.bind(commandBuffer, currentFrame);
         crosshair.draw(commandBuffer);
 
         renderPass.end(commandBuffer);
@@ -485,6 +659,7 @@ public:
         worldUpdateThread.join();
 
         pipeline.cleanup(vulkanState.device);
+        modelPipeline.cleanup(vulkanState.device);
         transparentPipeline.cleanup(vulkanState.device);
         uiPipeline.cleanup(vulkanState.device);
         renderPass.cleanup(vulkanState.allocator, vulkanState.device);
