@@ -302,7 +302,7 @@ public:
         model = Model<VertexData, uint32_t, InstanceData>::fromVerticesAndIndices(modelVertices, modelIndices, 1, vulkanState.allocator,
             vulkanState.commands, vulkanState.graphicsQueue, vulkanState.device);
         std::vector<InstanceData> modelInstances;
-        modelInstances.push_back(InstanceData{glm::vec3(80.0f)});
+        modelInstances.push_back(InstanceData{glm::vec3(75.0f)});
         model.updateInstances(modelInstances, vulkanState.commands, vulkanState.allocator, vulkanState.graphicsQueue, vulkanState.device);
 
         modelTextureImage = Image::createTexture(modelTextures[0], vulkanState.allocator,
