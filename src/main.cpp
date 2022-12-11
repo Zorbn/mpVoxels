@@ -98,7 +98,7 @@ public:
 
         for (size_t s = 0; s < shapes.size(); s++) {
             size_t indexOff = 0;
-            
+
             for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
                 size_t faceVerts = static_cast<size_t>(shapes[s].mesh.num_face_vertices[f]);
 
@@ -116,7 +116,7 @@ public:
                         ty = attrib.texcoords[2 * static_cast<size_t>(idx.texcoord_index) + 1];
                     }
 
-                    indices.push_back(vertices.size());
+                    indices.push_back(static_cast<uint32_t>(vertices.size()));
 
                     vertices.push_back(VertexData{
                         glm::vec3(vx, vy, vz),
@@ -678,6 +678,11 @@ public:
         world.destroy(vulkanState.allocator);
         blockInteraction.destroy(vulkanState.allocator);
         crosshair.destroy(vulkanState.allocator);
+
+        vkDestroySampler(vulkanState.device, modelTextureSampler, nullptr);
+        vkDestroyImageView(vulkanState.device, modelTextureImageView, nullptr);
+        modelTextureImage.destroy(vulkanState.allocator);
+        model.destroy(vulkanState.allocator);
     }
 
     int run() {
