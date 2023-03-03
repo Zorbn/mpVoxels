@@ -82,5 +82,10 @@
         "xtree": "cpp",
         "xutility": "cpp",
         "random": "cpp"
+    },
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#5C013F",
+        "titleBar.activeBackground": "#810258",
+        "titleBar.activeForeground": "#FFFAFD"
     }
 }
