@@ -137,6 +137,8 @@ void Chunk::updateMesh(World& world, VmaAllocator allocator, Commands& commands,
                             glm::vec3(uv.x, uv.y, static_cast<float>(block) - 1),
                         });
                     }
+
+                    orientLastFace();
                 }
             }
         }
